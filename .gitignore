@@ -1,5 +1,8 @@
 description.md
 .env
+*.duckdb
+.venv
+.idea
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

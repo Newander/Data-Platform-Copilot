@@ -3,17 +3,16 @@ FROM python:3.13-bookworm
 ENV ROOT_DIR=/src
 
 RUN mkdir "$ROOT_DIR"
-COPY requirements.txt $ROOT_DIR
 
 COPY src $ROOT_DIR
 COPY db /db
 COPY data /data
 
-RUN ls
+COPY requirements.txt $ROOT_DIR
 COPY entrypoint.sh $ROOT_DIR
 
 WORKDIR $ROOT_DIR
 
 RUN pip install -r $ROOT_DIR/requirements.txt
 
-ENTRYPOINT exec "$ROOT_DIR/entrypoint.sh"
+EXPOSE 8000
