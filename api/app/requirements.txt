@@ -1,0 +1,4 @@
+fastapi
+granian
+SQLAlchemy
+psycopg2-binary

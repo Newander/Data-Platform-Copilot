@@ -1,2 +1,3 @@
-# data-pilot
-...in working
+# Data Platform Copilot
+
+...in progress
