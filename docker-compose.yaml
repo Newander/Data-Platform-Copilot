@@ -3,8 +3,8 @@ version: '3'
 services:
   api:
     build:
-      context: api/
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: infra/Dockerfile.api
     env_file: .env
     ports:
       - "8080:8080"
