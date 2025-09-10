@@ -1,0 +1,2 @@
+order_id,customer_id,order_ts,total_amount,currency
+101,1,2024-03-01T10:05:00,120.50,EUR

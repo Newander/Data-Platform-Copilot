@@ -2,3 +2,8 @@ fastapi
 granian
 SQLAlchemy
 psycopg2-binary
+duckdb
+pandas
+pydantic
+tenacity
+httpx
