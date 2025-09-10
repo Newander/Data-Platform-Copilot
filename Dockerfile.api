@@ -1,11 +1,16 @@
 FROM python:3.13-bookworm
 
-ENV ROOT_DIR=/app
+ENV ROOT_DIR=/src
 
-COPY ../src/app $ROOT_DIR
-COPY requirements.txt $ROOT_DIR/
+RUN mkdir "$ROOT_DIR"
+COPY requirements.txt $ROOT_DIR
+
+COPY src $ROOT_DIR
 COPY db /db
 COPY data /data
+
+RUN ls
+COPY entrypoint.sh $ROOT_DIR
 
 WORKDIR $ROOT_DIR
 
