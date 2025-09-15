@@ -1,11 +1,26 @@
 version: '3'
 
 services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: [ "CMD", "ollama", "list" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
     env_file: .env
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
     ports:
       - "8080:8080"
     volumes:
@@ -13,3 +28,6 @@ services:
       - ./data:/data
       - ./db:/db
     command: granian --interface asgi --host 0.0.0.0 --port 8080 --workers 1 main:app
+
+volumes:
+  ollama:

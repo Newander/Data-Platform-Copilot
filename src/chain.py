@@ -23,7 +23,9 @@ LIMIT 5;
 """
 
 
+
 async def nl_to_sql(question: str, row_limit: int) -> str:
-    prompt = SYSTEM_PROMPT.format(schema_docs=load_schema_docs(), row_limit=row_limit)
-    out = await complete(prompt + f"\nQ: {question}\nSQL:\n")
+    system = SYSTEM_PROMPT.format(schema_docs=load_schema_docs()).replace("{row_limit}", str(row_limit))
+    user = f"Q: {question}\nSQL:\n"
+    out = await complete(system, user)
     return out
