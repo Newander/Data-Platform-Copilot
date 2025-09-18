@@ -2,7 +2,8 @@ POST http://localhost:8080/chat
 Content-Type: application/json
 
 {
-  "question": "топ-5 стран по выручке за 2024"
+  "question": "top 5 countries by revenue for 2024"
 }
+
 ###
 GET http://localhost:8080/health
