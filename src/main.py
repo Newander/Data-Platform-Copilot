@@ -1,60 +1,51 @@
 import logging
-from typing import Optional
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI
+from prometheus_client import generate_latest
+from prometheus_fastapi_instrumentator import Instrumentator
+from starlette.responses import Response
 
-from src.chain import nl_to_sql
-from src.constants import ROW_LIMIT, LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, SERVER_HOST, SERVER_PORT
-from src.sql_runner import extract_sql_from_markdown, run, IncorrectQuestionError
+from src.metrics import METRICS
+from src.routes import common_router
+from src.settings import LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, SERVER_HOST, SERVER_PORT
 
 logging.basicConfig(
     level=LOG_LEVEL,
     format=LOG_FORMAT,
     datefmt=DATE_FORMAT,
-    force=True,  # перезаписывает существующую конфигурацию логирования (полезно при повторных запусках)
+    force=True,  # overrides existing logging configuration (useful for repeated runs)
 )
 app = FastAPI(
-    title="Simple FastAPI with SQLAlchemy",
+    title="Data Pilot FastApi Backend Service",
     debug=True
 )
 
-
-class AskRequest(BaseModel):
-    question: str
-
-
-class AskResponse(BaseModel):
-    answer: Optional[str] = None
+app.include_router(common_router)
 
 
 @app.get("/health")
-def health() -> dict:
+def health_route() -> dict:
     return {"status": "ok"}
 
 
-class ChatIn(BaseModel):
-    question: str
+@app.get("/description")
+def description_route() -> dict:
+    return {"message": "Here will be a description of database"}
 
 
-class ChatOut(BaseModel):
-    sql: str
-    plan: str
-    rows: list
+@app.get("/schema")
+def schema_route() -> dict:
+    return {"message": "Here will be a schema of database"}
 
 
-@app.post("/chat", response_model=ChatOut)
-async def chat(inp: ChatIn):
-    sql_md = await nl_to_sql(inp.question, ROW_LIMIT)
-    if not sql_md:
-        raise HTTPException(500, "LLM provider not configured")
+fastapi_metrics = Instrumentator().instrument(app)
 
-    sql = extract_sql_from_markdown(sql_md)
-    try:
-        plan, preview = run(sql)
-    except IncorrectQuestionError as err:
-        raise HTTPException(400, err.args[0]) from err
-    return ChatOut(sql=sql, plan=plan, rows=preview.to_dict(orient="records"))
+
+@app.get("/metrics")
+def metrics() -> Response:
+    METRICS.set_external_exporter(lambda: generate_latest(fastapi_metrics.registry).decode("utf-8"))
+    payload = METRICS.export_prometheus()
+    return Response(content=payload, media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
 if __name__ == "__main__":
