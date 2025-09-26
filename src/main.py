@@ -3,6 +3,7 @@ import time
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 
 from src.chain import nl_to_sql, refine, make_plan
@@ -191,11 +192,9 @@ async def chat_agent(inp: AgentIn):
     )
 
 
-@app.get("/metrics")
-def metrics():
-    """ Prometheus related """
-    return METRICS.export_prometheus()
-
+fastapi_metrics = Instrumentator().instrument(app)
+fastapi_metrics.expose(app, endpoint="/metrics")
+METRICS.set_external_exporter(lambda: fastapi_metrics.registry.generate_latest().decode("utf-8"))
 
 if __name__ == "__main__":
     import uvicorn

@@ -16,3 +16,9 @@ Content-Type: application/json
 
 ###
 GET http://localhost:8080/health
+
+###
+GET http://localhost:8080/metrics
+
+###
+GET http://localhost:8080/metrics-fastapi
