@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from src.chain import nl_to_sql
 from src.constants import ROW_LIMIT, LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, HOST, PORT
-from src.sql_runner import extract_sql_from_markdown, run
+from src.sql_runner import extract_sql_from_markdown, run, IncorrectQuestionError
 
 logging.basicConfig(
     level=LOG_LEVEL,
@@ -50,7 +50,10 @@ async def chat(inp: ChatIn):
         raise HTTPException(500, "LLM provider not configured")
 
     sql = extract_sql_from_markdown(sql_md)
-    plan, preview = run(sql)
+    try:
+        plan, preview = run(sql)
+    except IncorrectQuestionError as err:
+        raise HTTPException(400, err.args[0]) from err
     return ChatOut(sql=sql, plan=plan, rows=preview.to_dict(orient="records"))
 
 

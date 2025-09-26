@@ -10,6 +10,9 @@ FORBIDDEN = re.compile(
 )
 
 
+class IncorrectQuestionError(Exception):
+    """ Returning on incorrect input question string """
+
 def extract_sql_from_markdown(s: str) -> str:
     m = re.search(r"```sql(.*?)```", s, re.IGNORECASE | re.DOTALL)
     return m.group(1).strip() if m else s.strip()
@@ -17,9 +20,9 @@ def extract_sql_from_markdown(s: str) -> str:
 
 def validate_sql(sql: str):
     if not SELECT_ONLY.match(sql):
-        raise ValueError("Only SELECT statements are allowed.")
+        raise IncorrectQuestionError("Question asked for incorrect output")
     if FORBIDDEN.search(sql):
-        raise ValueError("Statement contains forbidden keywords.")
+        raise IncorrectQuestionError("Statement contains forbidden keywords")
     # гарантируем LIMIT
     if "limit" not in sql.lower():
         sql += f"\nLIMIT {ROW_LIMIT}"
@@ -35,4 +38,4 @@ def run(outer_sql: str):
     con.close()
     # превью
     preview = df.head(min(len(df), 20))
-    return plan.to_string(), preview
+    return plan.to_string().strip(), preview
