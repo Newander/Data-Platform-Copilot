@@ -3,12 +3,14 @@ import time
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
+from prometheus_client import generate_latest
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
+from starlette.responses import Response
 
 from src.chain import nl_to_sql, refine, make_plan
-from src.settings import ROW_LIMIT, LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, HOST, PORT
 from src.metrics import METRICS
+from src.settings import ROW_LIMIT, LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, HOST, PORT
 from src.sql_runner import extract_sql_from_markdown, run, IncorrectQuestionError, is_safe
 
 logging.basicConfig(
@@ -133,14 +135,13 @@ async def chat_agent(inp: AgentIn):
             exec_ms_acc += exec_ms
             recs = preview.to_dict(orient="records")
             candidates.append(CandidateSQL(sql=sql, reason=f"ok:{len(recs)}rows, {exec_ms}ms"))
-            # эвристика выбора: первая успешная с непустыми строками
+            # selection heuristic: first successful with non-empty rows
             if recs and not chosen_sql:
                 chosen_sql = sql
                 rows = recs
-                explain = f"Запрос следует плану: {plan}. Таблицы и фильтры соответствуют описанию. "
+                explain = f"Query follows the plan: {plan}. Tables and filters match the description. "
                 break
-
-            # если пусто — рефайн и еще попытка
+            # if empty — refine and try again
             if not recs:
                 last_error = "empty"
                 retries += 1
@@ -160,10 +161,9 @@ async def chat_agent(inp: AgentIn):
             draft_md = await refine(inp.question, draft_md, f"execution error: {last_error}")
             gen_ms_acc += int((time.perf_counter() - t5) * 1000)
             sql = extract_sql_from_markdown(draft_md)
-
-    # если так и не получили непустой успех — берем последний успешный (если был) или последний кандидат
+    # if we didn't get a non-empty success — take the last successful (if any) or the last candidate
     if not chosen_sql:
-        # Пытаемся вернуть последний валидный запуск даже если пустой
+        # Try to return the last valid run even if empty
         for c in reversed(candidates):
             if c.reason.startswith("ok"):
                 chosen_sql = c.sql
@@ -187,14 +187,20 @@ async def chat_agent(inp: AgentIn):
         candidates=candidates,
         chosen_sql=chosen_sql,
         rows=rows,
-        explain=explain or f"Сформирован запрос по плану. Последний статус: {candidates[-1].reason if candidates else 'n/a'}.",
+        explain=explain or f"Query generated according to the plan. Last status: {candidates[-1].reason if candidates else 'n/a'}.",
         telemetry=telemetry,
     )
 
 
 fastapi_metrics = Instrumentator().instrument(app)
-fastapi_metrics.expose(app, endpoint="/metrics")
-METRICS.set_external_exporter(lambda: fastapi_metrics.registry.generate_latest().decode("utf-8"))
+
+
+@app.get("/metrics")
+def metrics() -> Response:
+    METRICS.set_external_exporter(lambda: generate_latest(fastapi_metrics.registry).decode("utf-8"))
+    payload = METRICS.export_prometheus()
+    return Response(content=payload, media_type="text/plain; version=0.0.4; charset=utf-8")
+
 
 if __name__ == "__main__":
     import uvicorn

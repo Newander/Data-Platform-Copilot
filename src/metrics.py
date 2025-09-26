@@ -11,7 +11,7 @@ class _Registry:
         self._external_exporter: Optional[Callable[[], str]] = None
 
     def set_external_exporter(self, exporter: Callable[[], str]):
-        """ Registrate external Prometheus plaintext) """
+        """ Register external Prometheus plaintext) """
         self._external_exporter = exporter
 
     def _key(self, name: str, labels: dict[str, str]) -> tuple[str, tuple[tuple[str, str], ...]]:
@@ -52,17 +52,19 @@ class _Registry:
         return "\n".join(lines) + "\n"
 
     def export_prometheus(self) -> str:
-        # Склеиваем внешний дамп (если есть, например, от Instrumentator) и локальные метрики
+        # Merge external dump (if any, e.g., from Instrumentator) and local metrics
         external = ""
         if self._external_exporter:
             try:
                 external = self._external_exporter() or ""
             except Exception:
                 external = ""
+
         local = self._export_local_prometheus()
         if not external.strip():
             return local
-        # Иначе объединяем (Prometheus терпит дубликаты разных меток/метрик в одном payload)
+
+        # Otherwise combine (Prometheus tolerates duplicates of different labels/metrics in one payload)
         return external.rstrip() + "\n" + local
 
 
