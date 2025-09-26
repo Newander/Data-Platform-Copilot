@@ -35,5 +35,17 @@ Content-Type: application/json
 
 {
   "question": "Сделай модель удержания пользователей по когортам регистрации 2024 года с недельной разбивкой и метрикой retention_7d",
-  "model_name": "mart_user_retention"
+  "model_name": "mart_user_retention",
+  "write": true
 }
+
+###
+POST http://localhost:8080/dbt/preview
+Content-Type: application/json
+
+{
+  "model_sql": "SELECT 1 AS x",
+  "limit_override": 10
+}
+
+###

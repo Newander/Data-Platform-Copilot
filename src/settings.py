@@ -19,8 +19,14 @@ SERVER_PORT = int(os.getenv("PORT", "8000"))
 # Data settings
 DB_DIR = Path(os.getenv("DB_DIR"))
 DATA_DIR = Path(os.getenv("DATA_DIR"))
-
 # Logs
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 LOG_FORMAT = os.getenv("LOG_FORMAT", "%(asctime)s | %(levelname)s | %(name)s | %(message)s")
 DATE_FORMAT = os.getenv("LOG_DATEFMT", "%Y-%m-%d %H:%M:%S")
+# dbt & Git
+DBT_DIR = Path(os.getenv("DBT_DIR", "dbt"))  # project root dbt
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_REPO = os.getenv("GITHUB_REPO")  # format "owner/repo"
+GIT_DEFAULT_BRANCH = os.getenv("GIT_DEFAULT_BRANCH", "main")
+GIT_AUTHOR_NAME = os.getenv("GIT_AUTHOR_NAME", "Data Platform Copilot")
+GIT_AUTHOR_EMAIL = os.getenv("GIT_AUTHOR_EMAIL", "bot@example.com")

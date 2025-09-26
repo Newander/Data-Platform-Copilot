@@ -1,7 +1,9 @@
 import re
+from pathlib import Path
 from typing import Optional, Tuple
 
 from src.chain import load_schema_docs, normalize_question
+from src.io_utils import write_files_atomic
 from src.provider import complete
 
 SYSTEM_PROMPT_DBT = """
@@ -115,3 +117,16 @@ models:
 """ + "\n" + yaml_block
 
     return suggested_name, sql_block, yaml_block
+
+
+def materialize_files_to_disk(
+        dbt_root: Path,
+        model_name: str,
+        model_sql: str,
+        schema_yml: str,
+) -> dict[str, str]:
+    files = {
+        f"models/{model_name}.sql": model_sql,
+        "models/schema.yml": schema_yml,
+    }
+    return write_files_atomic(dbt_root, files)

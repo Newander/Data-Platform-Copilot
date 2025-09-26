@@ -1,13 +1,16 @@
+import re
 import time
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from src.chain import nl_to_sql, make_plan, refine
-from src.dbt_generator import generate_dbt_model
+from src.dbt_generator import generate_dbt_model, materialize_files_to_disk
+from src.github_client import create_branch, upsert_file, create_pull_request, GitHubError
 from src.metrics import METRICS
-from src.settings import ROW_LIMIT
-from src.sql_runner import extract_sql_from_markdown, sql_run, IncorrectQuestionError, is_safe
+from src.settings import ROW_LIMIT, DBT_DIR, GIT_DEFAULT_BRANCH
+from src.sql_runner import extract_sql_from_markdown, sql_run, IncorrectQuestionError, is_safe, validate_sql
 
 common_router = APIRouter()
 
@@ -178,27 +181,90 @@ async def chat_agent(inp: AgentIn):
 
 class DbtGenIn(BaseModel):
     question: str = Field(..., description="Business question to convert into a dbt model")
-    model_name: str | None = Field(None, description="Optional target model name (snake_case)")
+    model_name: Optional[str] = Field(None, description="Optional target model name (snake_case)")
+    write: bool = Field(False, description="If true, write files to DBT_DIR")
 
 
 class DbtGenOut(BaseModel):
     model_name: str
-    files: dict  # {"models/<model_name>.sql": "...", "models/schema.yml": "..."}
+    files: dict  # {"models/<model>.sql": "...", "models/schema.yml": "..."}
+    written_paths: Optional[dict[str, str]] = None
 
 
 @common_router.post("/dbt/generate", response_model=DbtGenOut)
 async def dbt_generate(inp: DbtGenIn):
-    # Optionally, you can add a quick plan preview (not required for generation)
-    # plan = await make_plan(inp.question)  # not returned but could be logged/observed
-
     model_name, model_sql, schema_yml = await generate_dbt_model(
         question=inp.question,
         model_name=inp.model_name,
     )
-
-    # We just return file contents; writing to disk/PR
     files = {
         f"models/{model_name}.sql": model_sql,
         "models/schema.yml": schema_yml,
     }
-    return DbtGenOut(model_name=model_name, files=files)
+    written_paths = None
+    if inp.write:
+        written_paths = materialize_files_to_disk(DBT_DIR, model_name, model_sql, schema_yml)
+    return DbtGenOut(model_name=model_name, files=files, written_paths=written_paths)
+
+
+# === dbt preview: сухой прогон SELECT ===
+class DbtPreviewIn(BaseModel):
+    model_sql: str = Field(..., description="SELECT statement for preview (DuckDB-compatible)")
+    limit_override: Optional[int] = Field(None, description="Optional limit override")
+
+
+class DbtPreviewOut(BaseModel):
+    plan: str
+    rows: list
+
+
+@common_router.post("/dbt/preview", response_model=DbtPreviewOut)
+async def dbt_preview(inp: DbtPreviewIn):
+    sql = inp.model_sql
+    # валидация и гарантия LIMIT:
+    sql_validated = validate_sql(sql)
+    if inp.limit_override and inp.limit_override > 0:
+        # грубая замена последнего LIMIT — для простоты оставим базовую реализацию
+        sql_validated = re.sub(r"(?i)\blimit\s+\d+\s*$", f"LIMIT {inp.limit_override}",
+                               sql_validated.strip())  # type: ignore
+    plan, preview = sql_run(sql_validated)
+    return DbtPreviewOut(plan=plan, rows=preview.to_dict(orient="records"))
+
+
+# === dbt PR в GitHub ===
+class DbtPROut(BaseModel):
+    branch: str
+    files_committed: dict[str, str]
+    pr_url: str
+
+
+class DbtPRIn(BaseModel):
+    title: str = Field(..., description="PR title")
+    branch: str = Field(..., description="Feature branch to create or reuse")
+    base: Optional[str] = Field(None, description="Base branch (default from settings)")
+    files: dict[str, str] = Field(..., description="Repo-relative paths → contents (e.g., models/x.sql)")
+
+
+@common_router.post("/dbt/pr", response_model=DbtPROut)
+async def dbt_pr(inp: DbtPRIn):
+    try:
+        # создаём/проверяем ветку
+        await create_branch(inp.branch, from_branch=inp.base or GIT_DEFAULT_BRANCH)
+        committed: dict[str, str] = {}
+        for path, body in inp.files.items():
+            r = await upsert_file(
+                path=path,
+                content=body,
+                branch=inp.branch,
+                message=f"chore(dbt): add/update {path}",
+            )
+            committed[path] = r.get("content", {}).get("sha", "ok")
+        pr = await create_pull_request(
+            title=inp.title,
+            head=inp.branch,
+            base=inp.base or GIT_DEFAULT_BRANCH,
+            body="Automated PR from Data Platform Copilot",
+        )
+        return DbtPROut(branch=inp.branch, files_committed=committed, pr_url=pr.get("html_url", ""))
+    except GitHubError as e:
+        raise HTTPException(status_code=400, detail=str(e))
