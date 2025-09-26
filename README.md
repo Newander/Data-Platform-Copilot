@@ -1,4 +1,4 @@
-# 🧑‍🚀 Data Platform Copilot (MVP)
+# 🤖 Data Platform Copilot (MVP)
 
 **Data Platform Copilot** is a GenAI-powered assistant that translates natural language questions into **safe, validated SQL queries** against your Data Warehouse.  
 It is designed as a foundation for a full **AI + Data Management platform**, combining **Data Engineering** and **AI Engineering** skills in one end-to-end system.
@@ -22,32 +22,26 @@ It is designed as a foundation for a full **AI + Data Management platform**, com
 
 ## 🏗️ Project Structure
 
-```
-
 data-platform-copilot/
-├─ README.md                # This file
-├─ .env.example             # Example environment config
+├─ README.md # This file
+├─ .env.example # Example environment config
 ├─ docker-compose.yml
-├─ infra/
-│  ├─ Dockerfile.api        # API container
-│  └─ requirements.txt
-├─ data/                    # Synthetic CSV data
-│  ├─ customers.csv
-│  ├─ orders.csv
-│  └─ items.csv
-├─ db/
-│  ├─ init\_duckdb.py        # Initialize DuckDB database
-│  └─ schema\_docs.md        # Human-readable schema description
+├─ query.http # Example API requests
 ├─ src/
-│  ├─ api/main.py           # FastAPI entrypoint
-│  ├─ agent/                # Prompting & orchestration
-│  ├─ llm/                  # LLM provider abstraction
-│  ├─ tools/                # SQL runner, schema introspection
-│  └─ rag/                  # (future) retrieval components
-└─ tests/
-└─ e2e\_eval.md           # Simple evaluation prompts
+│ ├─ main.py # FastAPI application
+│ ├─ chain.py # LLM prompt template
+│ ├─ sql_runner.py # DuckDB query executor
+│ ├─ provider.py # LLM provider abstraction
+│ ├─ constants.py # Configuration & settings
+│ └─ templates/ # HTML templates
+├─ data/                    
+│ ├─ customers.csv # Sample data
+│ ├─ orders.csv
+│ └─ items.csv
+└─ db/
+├─ init_duckdb.py # Database initialization
+└─ schema_docs.md # Schema documentation
 
-````
 
 ---
 
@@ -55,9 +49,9 @@ data-platform-copilot/
 
 ### 1. Clone & prepare
 ```bash
-git clone https://github.com/<yourname>/data-platform-copilot.git
-cd data-platform-copilot
-cp .env.example .env
+    git clone https://github.com/<yourname>/data-platform-copilot.git
+    cd data-platform-copilot
+    cp .env.example .env
 ````
 
 ### 2. Configure environment
@@ -91,13 +85,13 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 ### 3. Initialize demo database
 
 ```bash
-docker compose run --rm api python db/init_duckdb.py
+  docker compose run --rm api python db/init_duckdb.py
 ```
 
 ### 4. Run the API
 
 ```bash
-docker compose up --build
+  docker compose up --build
 ```
 
 The service will be available at:
