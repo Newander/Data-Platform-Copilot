@@ -1,6 +1,9 @@
 import os
 from pathlib import Path
 
+# Constants
+DB_FILE_NAME = "demo.duckdb"
+
 # SQL Parameters
 ROW_LIMIT = int(os.getenv("ROW_LIMIT", "200"))
 TIMEOUT_MS = int(os.getenv("QUERY_TIMEOUT_MS", "8000"))

@@ -7,7 +7,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 
 from src.chain import nl_to_sql, refine, make_plan
-from src.constants import ROW_LIMIT, LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, HOST, PORT
+from src.settings import ROW_LIMIT, LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, HOST, PORT
 from src.metrics import METRICS
 from src.sql_runner import extract_sql_from_markdown, run, IncorrectQuestionError, is_safe
 

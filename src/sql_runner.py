@@ -2,7 +2,7 @@ import re
 
 import duckdb
 
-from src.constants import ROW_LIMIT
+from src.settings import ROW_LIMIT, DATA_DIR, DB_FILE_NAME
 
 SELECT_ONLY = re.compile(r"^\s*SELECT\b", re.IGNORECASE | re.DOTALL)
 FORBIDDEN = re.compile(
@@ -53,7 +53,7 @@ def is_safe(sql: str) -> tuple[bool, str]:
 
 def run(outer_sql: str):
     sql = validate_sql(outer_sql)
-    con = duckdb.connect("data/demo.duckdb")
+    con = duckdb.connect(DATA_DIR / DB_FILE_NAME)
     con.execute(f"SET threads TO 2; SET memory_limit='512MB';")
     plan = con.execute("EXPLAIN " + sql).fetchdf()
     df = con.execute(sql).fetchdf()

@@ -1,7 +1,7 @@
 import functools
 import re
 
-from src.constants import DB_DIR
+from src.settings import DB_DIR
 from src.provider import complete
 
 SYSTEM_PROMPT = """
@@ -28,7 +28,7 @@ LIMIT 5;
 
 @functools.lru_cache(maxsize=32)
 def load_schema_docs() -> str:
-    with open(f"{DB_DIR}/schema_docs.md", "r", encoding="utf-8") as f:
+    with open(DB_DIR / "schema_docs.md", "r", encoding="utf-8") as f:
         return f.read()
 
 
