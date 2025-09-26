@@ -25,7 +25,7 @@ def validate_sql(sql: str):
         raise IncorrectQuestionError("Question asked for incorrect output")
     if FORBIDDEN.search(sql):
         raise IncorrectQuestionError("Statement contains forbidden keywords")
-    # гарантируем LIMIT
+    # guaranteed LIMIT
     if "limit" not in sql.lower():
         sql += f"\nLIMIT {ROW_LIMIT}"
     return sql
@@ -34,20 +34,20 @@ def validate_sql(sql: str):
 def is_safe(sql: str) -> tuple[bool, str]:
     if not sql or not isinstance(sql, str):
         return False, "empty"
-    # убираем бэктики и лишнее
+    # remove backticks and extra
     body = sql.strip().strip("`")
     if FORBIDDEN.search(body):
         return False, "forbidden keyword"
     if not SELECT_ONLY.search(body):
         return False, "only SELECT allowed"
-    # ограничение на количество запросов — запрещаем несколько стейтментов
+    # limit on the number of queries — disallow multiple statements
     if ";" in body.strip().rstrip(";"):
         return False, "multiple statements"
-    # ограничение на комментарии, чтобы скрытые DDL не проскочили
+    # restriction on comments to prevent hidden DDL from slipping through
     if re.search(r"/\*.*\*/", body, re.DOTALL):
         return False, "block comments not allowed"
-    # базовая эвристика на LIMIT (если нет агрегатов/явно маленьких сетов)
-    # мягкое предупреждение не блокируем: только совет
+    # basic heuristic for LIMIT (if no aggregates/explicitly small sets)
+    # soft warning do not block: advice only
     return True, "ok"
 
 
@@ -58,6 +58,6 @@ def run(outer_sql: str):
     plan = con.execute("EXPLAIN " + sql).fetchdf()
     df = con.execute(sql).fetchdf()
     con.close()
-    # превью
+    # preview
     preview = df.head(min(len(df), 20))
     return plan.to_string().strip(), preview

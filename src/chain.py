@@ -1,8 +1,8 @@
 import functools
 import re
 
-from src.settings import DB_DIR
 from src.provider import complete
+from src.settings import DB_DIR
 
 SYSTEM_PROMPT = """
 You convert user questions to a single SAFE SQL SELECT for DuckDB. For Russian and English languages.
@@ -41,26 +41,25 @@ async def nl_to_sql(question: str, row_limit: int) -> str:
 
 async def refine(question: str, sql_md: str, feedback: str | None) -> str:
     """
-    Простая стратегия рефайна:
-    - Добавляем к пользовательскому сообщению краткий фидбек об ошибке/пустом результате/небезопасности
-    - Просим перегенерировать SQL, сохраняя ограничения на безопасность
+    Simple refine strategy:
+    - Add a short feedback to the user message about an error/empty result/unsafety
+    - Ask to regenerate SQL while keeping safety constraints
     """
-    # Минимальная подсказка: усиливаем сигнал о LIMIT и фильтрах
+    # Minimal hint: strengthen the signal about LIMIT and filters
     hint = ""
     if feedback:
-        hint = f"\nConstraints: Fix issue -> {feedback}. Keep it a single safe SELECT for DuckDB. Prefer simpler joins, ensure reasonable LIMIT."
-    # Просим модель еще раз с тем же лимитом (используется внутри nl_to_sql)
+        hint = (f"\nConstraints: Fix issue -> {feedback}. Keep it a single safe SELECT for DuckDB. Prefer simpler "
+                f"joins, ensure reasonable LIMIT.")
+    # Ask the model again with the same limit (used inside nl_to_sql)
     improved_md = await nl_to_sql(question + hint, row_limit=100)
     return improved_md
-
 
 def normalize_question(q: str) -> str:
     q = q.strip()
     q = re.sub(r"\s+", " ", q)
-    # простая нормализация чисел/лет
-    q = q.replace("г.", "год").replace("года", "год")
+    # simple normalization of numbers/years
+    q = q.replace("г.", "year").replace("года", "year")
     return q
-
 
 def _extract_tokens(text: str) -> list[str]:
     return re.findall(r"[A-Za-zА-Яа-я0-9_]+", text.lower())
@@ -68,9 +67,9 @@ def _extract_tokens(text: str) -> list[str]:
 
 def similar_fields(q: str, schema_docs: str, topk: int = 5) -> list[str]:
     """
-    Простейшее "семантическое" сопоставление по токенам:
-    - Берем токены вопроса
-    - Ищем строки-описания полей/таблиц в schema_docs с максимальным пересечением токенов
+    Simplest "semantic" token matching:
+    - Take question tokens
+    - Find field/table description lines in schema_docs with the maximum token overlap
     """
     q_tokens = set(_extract_tokens(q))
     best: list[tuple[int, str]] = []
@@ -87,19 +86,19 @@ def similar_fields(q: str, schema_docs: str, topk: int = 5) -> list[str]:
 
 async def make_plan(question: str, schema_docs: str | None = None) -> str:
     """
-    Генерирует краткий план для NL→SQL:
-    - Цель/метрика
-    - Кандидатные таблицы/поля (по семантике)
-    - Фильтры (включая временной)
+    Generates a brief plan for NL→SQL:
+    - Goal/metric
+    - Candidate tables/fields (by semantics)
+    - Filters (including time)
     """
     qn = normalize_question(question)
     schema = schema_docs or load_schema_docs()
     fields = similar_fields(qn, schema, topk=5)
-    bullets = [f"Цель: ответить на '{question}'"]
+    bullets = [f"Goal: answer '{question}'"]
     if fields:
-        bullets.append("Ключевые поля/таблицы: " + ", ".join(fields))
-    # простая эвристика про время
+        bullets.append("Key fields/tables: " + ", ".join(fields))
+    # simple heuristic about time
     if any(k in qn.lower() for k in ["год", "месяц", "quarter", "year", "month", "дата", "в 202", "за 202"]):
-        bullets.append("Добавить фильтр по периоду, использовать ISO даты и BETWEEN y-01-01 AND (y+1)-01-01")
-    bullets.append("Вывод: явный список колонок, разумный LIMIT")
+        bullets.append("Add a period filter, use ISO dates and BETWEEN y-01-01 AND (y+1)-01-01")
+    bullets.append("Output: explicit list of columns, reasonable LIMIT")
     return " ; ".join(bullets)
