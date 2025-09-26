@@ -1,6 +1,6 @@
 import httpx
 
-from src.settings import OPENAI_API_KEY, MODEL, OPENROUTER_API_KEY, OLLAMA_BASE_URL, PROVIDER
+from src.settings import OPENAI_API_KEY, LLM_MODEL, OPENROUTER_API_KEY, OLLAMA_BASE_URL, LLM_PROVIDER
 
 # General defaults for more deterministic SQL generation
 GEN_PARAMS = {
@@ -24,7 +24,7 @@ async def openai_complete(system_prompt: str, user_prompt: str) -> str:
         "Content-Type": "application/json",
     }
     payload = {
-        "model": MODEL,
+        "model": LLM_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -53,7 +53,7 @@ async def openrouter_complete(system_prompt: str, user_prompt: str) -> str:
         "Content-Type": "application/json",
     }
     payload = {
-        "model": MODEL,  # e.g. "meta-llama/llama-3.1-70b-instruct:free"
+        "model": LLM_MODEL,  # e.g. "meta-llama/llama-3.1-70b-instruct:free"
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -73,7 +73,7 @@ async def openrouter_complete(system_prompt: str, user_prompt: str) -> str:
 async def ollama_complete(system_prompt: str, user_prompt: str) -> str:
     url = f"{OLLAMA_BASE_URL}/v1/chat/completions"  # Ollama's compatible endpoint >= v0.3
     payload = {
-        "model": MODEL,  # e.g. "llama3.1"
+        "model": LLM_MODEL,  # e.g. "llama3.1"
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -101,10 +101,10 @@ async def ollama_complete(system_prompt: str, user_prompt: str) -> str:
 
 
 async def complete(system_prompt: str, user_prompt: str) -> str:
-    if PROVIDER == "openai":
+    if LLM_PROVIDER == "openai":
         return await openai_complete(system_prompt, user_prompt)
-    if PROVIDER == "openrouter":
+    if LLM_PROVIDER == "openrouter":
         return await openrouter_complete(system_prompt, user_prompt)
-    if PROVIDER == "ollama":
+    if LLM_PROVIDER == "ollama":
         return await ollama_complete(system_prompt, user_prompt)
-    raise LLMError(f"Unsupported LLM_PROVIDER: {PROVIDER}")
+    raise LLMError(f"Unsupported LLM_PROVIDER: {LLM_PROVIDER}")
