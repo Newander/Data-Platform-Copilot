@@ -143,6 +143,7 @@ async def chat_agent(inp: AgentIn):
             draft_md = await refine(inp.question, draft_md, f"execution error: {last_error}")
             gen_ms_acc += int((time.perf_counter() - t5) * 1000)
             sql = extract_sql_from_markdown(draft_md)
+
     # if we didn't get a non-empty success — take the last successful (if any) or the last candidate
     if not chosen_sql:
         # Try to return the last valid run even if empty

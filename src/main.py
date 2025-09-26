@@ -4,7 +4,6 @@ from fastapi import FastAPI
 from prometheus_client import generate_latest
 from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.responses import Response
-from starlette.status import HTTP_204_NO_CONTENT
 
 from src.metrics import METRICS
 from src.routes import common_router
@@ -29,14 +28,14 @@ def health_route() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/description", status_code=HTTP_204_NO_CONTENT)
-def description_route() -> str:
-    return "Here will be a description of database"
+@app.get("/description")
+def description_route() -> dict:
+    return {"message": "Here will be a description of database"}
 
 
-@app.get("/schema", status_code=HTTP_204_NO_CONTENT)
-def schema_route() -> str:
-    return "Here will be a schema of database"
+@app.get("/schema")
+def schema_route() -> dict:
+    return {"message": "Here will be a schema of database"}
 
 
 fastapi_metrics = Instrumentator().instrument(app)

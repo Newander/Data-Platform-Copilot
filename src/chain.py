@@ -98,7 +98,9 @@ async def make_plan(question: str, schema_docs: str | None = None) -> str:
     if fields:
         bullets.append("Key fields/tables: " + ", ".join(fields))
     # simple heuristic about time
+    # todo: move to dedicated object
     if any(k in qn.lower() for k in ["год", "месяц", "quarter", "year", "month", "дата", "в 202", "за 202"]):
         bullets.append("Add a period filter, use ISO dates and BETWEEN y-01-01 AND (y+1)-01-01")
+    # todo: add more specific Nl -> SQL things that can be extracted from the question
     bullets.append("Output: explicit list of columns, reasonable LIMIT")
     return " ; ".join(bullets)
