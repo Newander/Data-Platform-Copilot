@@ -1,5 +1,6 @@
+import os
+
 from src.provider import complete
-from src.schema_introspect import load_schema_docs
 
 SYSTEM_PROMPT = """
 You convert user questions to a single SAFE SQL SELECT for DuckDB. For Russian and English languages.
@@ -21,6 +22,11 @@ GROUP BY 1
 ORDER BY revenue DESC
 LIMIT 5;
 """
+
+
+def load_schema_docs() -> str:
+    with open(f"{os.getenv("DB_DIR")}/schema_docs.md", "r", encoding="utf-8") as f:
+        return f.read()
 
 
 async def nl_to_sql(question: str, row_limit: int) -> str:

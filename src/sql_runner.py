@@ -21,16 +21,15 @@ def validate_sql(sql: str):
     if FORBIDDEN.search(sql):
         raise ValueError("Statement contains forbidden keywords.")
     # гарантируем LIMIT
-    if " limit " not in sql.lower():
+    if "limit" not in sql.lower():
         sql += f"\nLIMIT {ROW_LIMIT}"
     return sql
 
 
-def run(sql: str):
-    sql = validate_sql(sql)
+def run(outer_sql: str):
+    sql = validate_sql(outer_sql)
     con = duckdb.connect("data/demo.duckdb")
-    con.execute(f"SET threads TO 2; SET memory_limit='512MB'; SET runtime_statistics=true;")
-    con.execute(f"PRAGMA busy_timeout={TIMEOUT_MS};")
+    con.execute(f"SET threads TO 2; SET memory_limit='512MB';")
     plan = con.execute("EXPLAIN " + sql).fetchdf()
     df = con.execute(sql).fetchdf()
     con.close()
