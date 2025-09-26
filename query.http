@@ -28,3 +28,12 @@ Content-Type: application/json
   "question": "Find the most frequently bought items by orders and list top 15 customers who bought them in 2024 year and sort them by amount of the biggest purchase",
   "max_steps": 4
 }
+
+### Generate Schema
+POST http://localhost:8080/dbt/generate
+Content-Type: application/json
+
+{
+  "question": "Сделай модель удержания пользователей по когортам регистрации 2024 года с недельной разбивкой и метрикой retention_7d",
+  "model_name": "mart_user_retention"
+}

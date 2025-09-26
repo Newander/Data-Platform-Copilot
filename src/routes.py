@@ -1,9 +1,10 @@
 import time
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.chain import nl_to_sql, make_plan, refine
+from src.dbt_generator import generate_dbt_model
 from src.metrics import METRICS
 from src.settings import ROW_LIMIT
 from src.sql_runner import extract_sql_from_markdown, sql_run, IncorrectQuestionError, is_safe
@@ -16,7 +17,7 @@ class AskRequest(BaseModel):
 
 
 class AskResponse(BaseModel):
-    answer: str| None = None
+    answer: str | None = None
 
 
 class ChatIn(BaseModel):
@@ -173,3 +174,31 @@ async def chat_agent(inp: AgentIn):
         explain=explain or f"Query generated according to the plan. Last status: {candidates[-1].reason if candidates else 'n/a'}.",
         telemetry=telemetry,
     )
+
+
+class DbtGenIn(BaseModel):
+    question: str = Field(..., description="Business question to convert into a dbt model")
+    model_name: str | None = Field(None, description="Optional target model name (snake_case)")
+
+
+class DbtGenOut(BaseModel):
+    model_name: str
+    files: dict  # {"models/<model_name>.sql": "...", "models/schema.yml": "..."}
+
+
+@common_router.post("/dbt/generate", response_model=DbtGenOut)
+async def dbt_generate(inp: DbtGenIn):
+    # Optionally, you can add a quick plan preview (not required for generation)
+    # plan = await make_plan(inp.question)  # not returned but could be logged/observed
+
+    model_name, model_sql, schema_yml = await generate_dbt_model(
+        question=inp.question,
+        model_name=inp.model_name,
+    )
+
+    # We just return file contents; writing to disk/PR
+    files = {
+        f"models/{model_name}.sql": model_sql,
+        "models/schema.yml": schema_yml,
+    }
+    return DbtGenOut(model_name=model_name, files=files)
