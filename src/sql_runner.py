@@ -51,7 +51,7 @@ def is_safe(sql: str) -> tuple[bool, str]:
     return True, "ok"
 
 
-def run(outer_sql: str):
+def sql_run(outer_sql: str):
     sql = validate_sql(outer_sql)
     con = duckdb.connect(DATA_DIR / DB_FILE_NAME)
     con.execute(f"SET threads TO 2; SET memory_limit='512MB';")

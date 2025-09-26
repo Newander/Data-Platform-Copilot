@@ -1,195 +1,42 @@
 import logging
-import time
-from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from prometheus_client import generate_latest
 from prometheus_fastapi_instrumentator import Instrumentator
-from pydantic import BaseModel
 from starlette.responses import Response
+from starlette.status import HTTP_204_NO_CONTENT
 
-from src.chain import nl_to_sql, refine, make_plan
 from src.metrics import METRICS
-from src.settings import ROW_LIMIT, LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, HOST, PORT
-from src.sql_runner import extract_sql_from_markdown, run, IncorrectQuestionError, is_safe
+from src.routes import common_router
+from src.settings import LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, HOST, PORT
 
 logging.basicConfig(
     level=LOG_LEVEL,
     format=LOG_FORMAT,
     datefmt=DATE_FORMAT,
-    force=True,  # перезаписывает существующую конфигурацию логирования (полезно при повторных запусках)
+    force=True,  # overrides existing logging configuration (useful for repeated runs)
 )
 app = FastAPI(
-    title="Simple FastAPI with SQLAlchemy",
+    title="Data Pilot FastApi Backend Service",
     debug=True
 )
 
-
-class AskRequest(BaseModel):
-    question: str
-
-
-class AskResponse(BaseModel):
-    answer: Optional[str] = None
+app.include_router(common_router)
 
 
 @app.get("/health")
-def health() -> dict:
+def health_route() -> dict:
     return {"status": "ok"}
 
 
-class ChatIn(BaseModel):
-    question: str
+@app.get("/description", status_code=HTTP_204_NO_CONTENT)
+def description_route() -> str:
+    return "Here will be a description of database"
 
 
-class ChatOut(BaseModel):
-    sql: str
-    plan: str
-    rows: list
-
-
-@app.post("/chat", response_model=ChatOut)
-async def chat(inp: ChatIn):
-    sql_md = await nl_to_sql(inp.question, ROW_LIMIT)
-    if not sql_md:
-        raise HTTPException(500, "LLM provider not configured")
-
-    sql = extract_sql_from_markdown(sql_md)
-    try:
-        plan, preview = run(sql)
-    except IncorrectQuestionError as err:
-        raise HTTPException(400, err.args[0]) from err
-    return ChatOut(sql=sql, plan=plan, rows=preview.to_dict(orient="records"))
-
-
-class AgentIn(BaseModel):
-    question: str
-    max_steps: Optional[int] = 2
-
-
-class CandidateSQL(BaseModel):
-    sql: str
-    reason: str
-
-
-class AgentOut(BaseModel):
-    plan: str
-    candidates: list[CandidateSQL]
-    chosen_sql: str
-    rows: list
-    explain: str
-    telemetry: dict
-
-
-@app.post("/chat/agent", response_model=AgentOut)
-async def chat_agent(inp: AgentIn):
-    METRICS.inc("ai_requests_total", {"route": "agent"})
-    plan = await make_plan(inp.question)
-    candidates: list[CandidateSQL] = []
-    chosen_sql = ""
-    explain = ""
-    rows = []
-    gen_ms_acc = 0
-    exec_ms_acc = 0
-    retries = 0
-
-    # First try generation
-    t0 = time.perf_counter()
-    draft_md = await nl_to_sql(inp.question, ROW_LIMIT)
-    gen_ms_acc += int((time.perf_counter() - t0) * 1000)
-    if not draft_md:
-        METRICS.inc("ai_errors_total", {"stage": "generate"})
-        raise HTTPException(500, "LLM provider not configured")
-
-    # Extract SQL and check safety
-    sql = extract_sql_from_markdown(draft_md)
-    ok, reason = is_safe(sql)
-    if not ok:
-        candidates.append(CandidateSQL(sql=sql, reason=f"blocked: {reason}"))
-        # Refine with feedback
-        retries += 1
-        t1 = time.perf_counter()
-        draft_md = await refine(inp.question, draft_md, f"unsafe: {reason}")
-        gen_ms_acc += int((time.perf_counter() - t1) * 1000)
-        sql = extract_sql_from_markdown(draft_md)
-
-    # Execute refine with emptiness
-    step = 0
-    last_error = None
-    while step < (inp.max_steps or 2):
-        step += 1
-        ok, reason = is_safe(sql)
-        if not ok:
-            candidates.append(CandidateSQL(sql=sql, reason=f"blocked: {reason}"))
-            retries += 1
-            t2 = time.perf_counter()
-            draft_md = await refine(inp.question, draft_md, f"unsafe: {reason}")
-            gen_ms_acc += int((time.perf_counter() - t2) * 1000)
-            sql = extract_sql_from_markdown(draft_md)
-            continue
-
-        try:
-            t3 = time.perf_counter()
-            plan_text, preview = run(sql)
-            exec_ms = int((time.perf_counter() - t3) * 1000)
-            exec_ms_acc += exec_ms
-            recs = preview.to_dict(orient="records")
-            candidates.append(CandidateSQL(sql=sql, reason=f"ok:{len(recs)}rows, {exec_ms}ms"))
-            # selection heuristic: first successful with non-empty rows
-            if recs and not chosen_sql:
-                chosen_sql = sql
-                rows = recs
-                explain = f"Query follows the plan: {plan}. Tables and filters match the description. "
-                break
-            # if empty — refine and try again
-            if not recs:
-                last_error = "empty"
-                retries += 1
-                t4 = time.perf_counter()
-                draft_md = await refine(inp.question, draft_md,
-                                        "empty result, add broader filters or remove overly strict predicates")
-                gen_ms_acc += int((time.perf_counter() - t4) * 1000)
-                sql = extract_sql_from_markdown(draft_md)
-                continue
-
-        except IncorrectQuestionError as err:
-            last_error = str(err)
-            candidates.append(CandidateSQL(sql=sql, reason=f"error:{last_error}"))
-            METRICS.inc("ai_errors_total", {"stage": "execute"})
-            retries += 1
-            t5 = time.perf_counter()
-            draft_md = await refine(inp.question, draft_md, f"execution error: {last_error}")
-            gen_ms_acc += int((time.perf_counter() - t5) * 1000)
-            sql = extract_sql_from_markdown(draft_md)
-    # if we didn't get a non-empty success — take the last successful (if any) or the last candidate
-    if not chosen_sql:
-        # Try to return the last valid run even if empty
-        for c in reversed(candidates):
-            if c.reason.startswith("ok"):
-                chosen_sql = c.sql
-                try:
-                    _, preview = run(chosen_sql)
-                    rows = preview.to_dict(orient="records")
-                except Exception:
-                    rows = []
-                break
-        if not chosen_sql and candidates:
-            chosen_sql = candidates[-1].sql
-
-    telemetry = {"gen_ms": gen_ms_acc, "exec_ms": exec_ms_acc, "retries": retries, "last_error": last_error}
-    METRICS.observe_ms("ai_sql_generation_ms", gen_ms_acc, {})
-    METRICS.observe_ms("ai_sql_exec_ms", exec_ms_acc, {})
-    if last_error == "empty":
-        METRICS.inc("ai_sql_empty_results_total", {})
-
-    return AgentOut(
-        plan=plan,
-        candidates=candidates,
-        chosen_sql=chosen_sql,
-        rows=rows,
-        explain=explain or f"Query generated according to the plan. Last status: {candidates[-1].reason if candidates else 'n/a'}.",
-        telemetry=telemetry,
-    )
+@app.get("/schema", status_code=HTTP_204_NO_CONTENT)
+def schema_route() -> str:
+    return "Here will be a schema of database"
 
 
 fastapi_metrics = Instrumentator().instrument(app)
