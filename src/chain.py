@@ -1,4 +1,5 @@
 import functools
+import re
 
 from src.constants import DB_DIR
 from src.provider import complete
@@ -24,6 +25,7 @@ ORDER BY revenue DESC
 LIMIT 5;
 """
 
+
 @functools.lru_cache(maxsize=32)
 def load_schema_docs() -> str:
     with open(f"{DB_DIR}/schema_docs.md", "r", encoding="utf-8") as f:
@@ -35,3 +37,69 @@ async def nl_to_sql(question: str, row_limit: int) -> str:
     user = f"Q: {question}\nSQL:\n"
     out = await complete(system, user)
     return out
+
+
+async def refine(question: str, sql_md: str, feedback: str | None) -> str:
+    """
+    Простая стратегия рефайна:
+    - Добавляем к пользовательскому сообщению краткий фидбек об ошибке/пустом результате/небезопасности
+    - Просим перегенерировать SQL, сохраняя ограничения на безопасность
+    """
+    # Минимальная подсказка: усиливаем сигнал о LIMIT и фильтрах
+    hint = ""
+    if feedback:
+        hint = f"\nConstraints: Fix issue -> {feedback}. Keep it a single safe SELECT for DuckDB. Prefer simpler joins, ensure reasonable LIMIT."
+    # Просим модель еще раз с тем же лимитом (используется внутри nl_to_sql)
+    improved_md = await nl_to_sql(question + hint, row_limit=100)
+    return improved_md
+
+
+def normalize_question(q: str) -> str:
+    q = q.strip()
+    q = re.sub(r"\s+", " ", q)
+    # простая нормализация чисел/лет
+    q = q.replace("г.", "год").replace("года", "год")
+    return q
+
+
+def _extract_tokens(text: str) -> list[str]:
+    return re.findall(r"[A-Za-zА-Яа-я0-9_]+", text.lower())
+
+
+def similar_fields(q: str, schema_docs: str, topk: int = 5) -> list[str]:
+    """
+    Простейшее "семантическое" сопоставление по токенам:
+    - Берем токены вопроса
+    - Ищем строки-описания полей/таблиц в schema_docs с максимальным пересечением токенов
+    """
+    q_tokens = set(_extract_tokens(q))
+    best: list[tuple[int, str]] = []
+    for line in schema_docs.splitlines():
+        tokens = set(_extract_tokens(line))
+        if not tokens:
+            continue
+        score = len(q_tokens & tokens)
+        if score > 0:
+            best.append((score, line.strip()[:120]))
+    best.sort(key=lambda x: (-x[0], x[1]))
+    return [b[1] for b in best[:topk]]
+
+
+async def make_plan(question: str, schema_docs: str | None = None) -> str:
+    """
+    Генерирует краткий план для NL→SQL:
+    - Цель/метрика
+    - Кандидатные таблицы/поля (по семантике)
+    - Фильтры (включая временной)
+    """
+    qn = normalize_question(question)
+    schema = schema_docs or load_schema_docs()
+    fields = similar_fields(qn, schema, topk=5)
+    bullets = [f"Цель: ответить на '{question}'"]
+    if fields:
+        bullets.append("Ключевые поля/таблицы: " + ", ".join(fields))
+    # простая эвристика про время
+    if any(k in qn.lower() for k in ["год", "месяц", "quarter", "year", "month", "дата", "в 202", "за 202"]):
+        bullets.append("Добавить фильтр по периоду, использовать ISO даты и BETWEEN y-01-01 AND (y+1)-01-01")
+    bullets.append("Вывод: явный список колонок, разумный LIMIT")
+    return " ; ".join(bullets)

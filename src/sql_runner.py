@@ -1,5 +1,6 @@
-import duckdb
 import re
+
+import duckdb
 
 from src.constants import ROW_LIMIT
 
@@ -12,6 +13,7 @@ FORBIDDEN = re.compile(
 
 class IncorrectQuestionError(Exception):
     """ Returning on incorrect input question string """
+
 
 def extract_sql_from_markdown(s: str) -> str:
     m = re.search(r"```sql(.*?)```", s, re.IGNORECASE | re.DOTALL)
@@ -27,6 +29,26 @@ def validate_sql(sql: str):
     if "limit" not in sql.lower():
         sql += f"\nLIMIT {ROW_LIMIT}"
     return sql
+
+
+def is_safe(sql: str) -> tuple[bool, str]:
+    if not sql or not isinstance(sql, str):
+        return False, "empty"
+    # убираем бэктики и лишнее
+    body = sql.strip().strip("`")
+    if FORBIDDEN.search(body):
+        return False, "forbidden keyword"
+    if not SELECT_ONLY.search(body):
+        return False, "only SELECT allowed"
+    # ограничение на количество запросов — запрещаем несколько стейтментов
+    if ";" in body.strip().rstrip(";"):
+        return False, "multiple statements"
+    # ограничение на комментарии, чтобы скрытые DDL не проскочили
+    if re.search(r"/\*.*\*/", body, re.DOTALL):
+        return False, "block comments not allowed"
+    # базовая эвристика на LIMIT (если нет агрегатов/явно маленьких сетов)
+    # мягкое предупреждение не блокируем: только совет
+    return True, "ok"
 
 
 def run(outer_sql: str):
