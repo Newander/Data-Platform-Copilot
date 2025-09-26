@@ -1,9 +1,6 @@
-import os
-
 import httpx
 
-PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
-MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+from src.constants import OPENAI_API_KEY, MODEL, OPENROUTER_API_KEY, OLLAMA_BASE_URL, PROVIDER
 
 # General defaults for more deterministic SQL generation
 GEN_PARAMS = {
@@ -18,13 +15,12 @@ class LLMError(RuntimeError):
 
 
 async def openai_complete(system_prompt: str, user_prompt: str) -> str:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+    if not OPENAI_API_KEY:
         raise LLMError("OPENAI_API_KEY is not set")
 
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
         "Content-Type": "application/json",
     }
     payload = {
@@ -46,13 +42,12 @@ async def openai_complete(system_prompt: str, user_prompt: str) -> str:
 
 
 async def openrouter_complete(system_prompt: str, user_prompt: str) -> str:
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
+    if not OPENROUTER_API_KEY:
         raise LLMError("OPENROUTER_API_KEY is not set")
 
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "HTTP-Referer": "https://github.com/yourname/data-platform-copilot",
         "X-Title": "Data Platform Copilot",
         "Content-Type": "application/json",
@@ -76,8 +71,7 @@ async def openrouter_complete(system_prompt: str, user_prompt: str) -> str:
 
 
 async def ollama_complete(system_prompt: str, user_prompt: str) -> str:
-    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    url = f"{base_url}/v1/chat/completions"  # Ollama's compatible endpoint >= v0.3
+    url = f"{OLLAMA_BASE_URL}/v1/chat/completions"  # Ollama's compatible endpoint >= v0.3
     payload = {
         "model": MODEL,  # e.g. "llama3.1"
         "messages": [

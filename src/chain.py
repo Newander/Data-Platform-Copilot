@@ -1,5 +1,4 @@
-import os
-
+from src.constants import DB_DIR
 from src.provider import complete
 
 SYSTEM_PROMPT = """
@@ -15,7 +14,7 @@ Schema:
 Examples:
 Q: top 5 countries by revenue in 2024
 SQL:
-SELECT c.country, SUM(o.total_amount) AS revenue
+SELECT c.country, round(SUM(o.total_amount), 2) AS revenue
 FROM orders o JOIN customers c USING(customer_id)
 WHERE o.order_ts >= '2024-01-01' AND o.order_ts < '2025-01-01'
 GROUP BY 1
@@ -25,7 +24,7 @@ LIMIT 5;
 
 
 def load_schema_docs() -> str:
-    with open(f"{os.getenv("DB_DIR")}/schema_docs.md", "r", encoding="utf-8") as f:
+    with open(f"{DB_DIR}/schema_docs.md", "r", encoding="utf-8") as f:
         return f.read()
 
 

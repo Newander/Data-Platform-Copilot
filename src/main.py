@@ -1,16 +1,12 @@
 import logging
-import os
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from src.chain import nl_to_sql
+from src.constants import ROW_LIMIT, LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, HOST, PORT
 from src.sql_runner import extract_sql_from_markdown, run
-
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-LOG_FORMAT = os.getenv("LOG_FORMAT", "%(asctime)s | %(levelname)s | %(name)s | %(message)s")
-DATE_FORMAT = os.getenv("LOG_DATEFMT", "%Y-%m-%d %H:%M:%S")
 
 logging.basicConfig(
     level=LOG_LEVEL,
@@ -49,7 +45,7 @@ class ChatOut(BaseModel):
 
 @app.post("/chat", response_model=ChatOut)
 async def chat(inp: ChatIn):
-    sql_md = await nl_to_sql(inp.question, int(os.getenv("ROW_LIMIT", "200")))
+    sql_md = await nl_to_sql(inp.question, ROW_LIMIT)
     if not sql_md:
         raise HTTPException(500, "LLM provider not configured")
 
@@ -61,4 +57,4 @@ async def chat(inp: ChatIn):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host=os.getenv("HOST", "0.0.0.0"), port=int(os.getenv("PORT", "8000")), reload=True)
+    uvicorn.run("main:app", host=HOST, port=PORT, reload=True)

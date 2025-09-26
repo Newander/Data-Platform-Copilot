@@ -1,17 +1,17 @@
-import os
-from pathlib import Path
+import logging
 
 import duckdb
 import pandas as pd
 
+from src.constants import DATA_DIR
+
 if __name__ == '__main__':
-    data_path = Path(os.getenv("DATA_DIR"))
-    db_path = data_path / "demo.duckdb"
+    db_path = DATA_DIR / "demo.duckdb"
     con = duckdb.connect(str(db_path))
     con.execute("INSTALL httpfs; LOAD httpfs;")
 
     for name in ("customers", "orders", "items"):
-        df = pd.read_csv(data_path / f"{name}.csv")
+        df = pd.read_csv(DATA_DIR / f"{name}.csv")
         con.execute(f"CREATE OR REPLACE TABLE {name} AS SELECT * FROM df")
 
     con.execute("""
@@ -23,4 +23,4 @@ if __name__ == '__main__':
                 GROUP BY 1
                 """)
     con.close()
-    print("DuckDB initialized:", db_path)
+    logging.info("DuckDB initialized:", db_path)

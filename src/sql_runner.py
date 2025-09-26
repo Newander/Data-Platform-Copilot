@@ -1,7 +1,7 @@
-import duckdb, re, os, pandas as pd
+import duckdb
+import re
 
-ROW_LIMIT = int(os.getenv("ROW_LIMIT", "200"))
-TIMEOUT_MS = int(os.getenv("QUERY_TIMEOUT_MS", "8000"))
+from src.constants import ROW_LIMIT
 
 SELECT_ONLY = re.compile(r"^\s*SELECT\b", re.IGNORECASE | re.DOTALL)
 FORBIDDEN = re.compile(
