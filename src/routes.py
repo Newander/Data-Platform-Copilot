@@ -12,6 +12,7 @@ from src.demo_seed import seed_events
 from src.dq import run_checks, render_markdown_report, fetch_table_sample, profile_df
 from src.github_client import create_branch, upsert_file, create_pull_request, GitHubError
 from src.metrics import METRICS
+from src.orchestrator import run_flow, get_status
 from src.schema_docs import write_schema_docs
 from src.settings import DBT_DIR, GIT_DEFAULT_BRANCH
 from src.settings import DQ_DEFAULT_LIMIT
@@ -387,3 +388,31 @@ async def schema_refresh():
         pass
     p = Path(path)
     return SchemaRefreshOut(schema_docs_path=path, size_bytes=p.stat().st_size if p.exists() else 0)
+
+
+class OrchestrateRunIn(BaseModel):
+    flow_name: str
+    params: dict | None = None
+
+
+class OrchestrateRunOut(BaseModel):
+    run_id: str
+    details: dict
+
+
+@common_router.post("/orchestrate/run", response_model=OrchestrateRunOut)
+async def orchestrate_run(inp: OrchestrateRunIn):
+    res = await run_flow(inp.flow_name, inp.params)
+    return OrchestrateRunOut(run_id=res.get("id"), details=res)
+
+
+class OrchestrateStatusOut(BaseModel):
+    run_id: str
+    state: str
+    details: dict
+
+
+@common_router.get("/orchestrate/status/{run_id}", response_model=OrchestrateStatusOut)
+async def orchestrate_status(run_id: str):
+    res = await get_status(run_id)
+    return OrchestrateStatusOut(run_id=run_id, state=res.get("state", {}).get("type", "unknown"), details=res)

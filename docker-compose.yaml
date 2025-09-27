@@ -1,6 +1,37 @@
-version: '3'
+version: "3.9"
 
 services:
+  # Prefect Server (API + UI)
+  prefect:
+    image: prefecthq/prefect:2-latest
+    command: prefect server start --host 0.0.0.0
+    environment:
+      PREFECT_API_URL: ${PREFECT_API_URL}
+    ports:
+      - "4200:4200"        # UI на http://localhost:4200
+    networks: [prefnet]
+
+  # Воркер/агент, который будет исполнять твои потоки
+  prefect-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.prefect-worker
+    depends_on:
+      - prefect
+    environment:
+      PREFECT_API_URL: ${PREFECT_API_URL}
+      PREFECT_LOGGING_LEVEL: ${PREFECT_LOGGING_LEVEL}
+      WORK_QUEUE: ${WORK_QUEUE}
+    command: >
+      bash -lc "
+      prefect version &&
+      (prefect work-queue create ${WORK_QUEUE} || true) &&
+      prefect agent start -q ${WORK_QUEUE}
+      "
+    volumes:
+      - ./flows:/app/flows:ro
+    networks: [prefnet]
+
   ollama:
     image: ollama/ollama:latest
     ports:
@@ -31,3 +62,6 @@ services:
 
 volumes:
   ollama:
+
+networks:
+  prefnet: {}

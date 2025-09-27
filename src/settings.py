@@ -34,4 +34,5 @@ GIT_AUTHOR_EMAIL = os.getenv("GIT_AUTHOR_EMAIL", "bot@example.com")# в коне
 DQ_DEFAULT_LIMIT = int(os.getenv("DQ_DEFAULT_LIMIT", "10000"))  # сколько строк тянуть на профиль
 DQ_MAX_LIMIT = int(os.getenv("DQ_MAX_LIMIT", "200000"))  # предохранитель
 DQ_DEFAULT_SIGMA = float(os.getenv("DQ_DEFAULT_SIGMA", "3.0"))  # для z-score
-
+# Orchestrator
+PREFECT_API = os.getenv("PREFECT_API", "http://localhost:4200/api")

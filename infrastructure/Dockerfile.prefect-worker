@@ -1,0 +1,11 @@
+FROM prefecthq/prefect:2-latest
+
+# Working directory
+WORKDIR /app
+
+# Dependencies, if needed (duckdb, pandas, etc. for your flows)
+# Add/remove as needed
+
+RUN pip install --no-cache-dir duckdb pandas
+# Put flow code into a separate volume (see volumes in compose)
+# COPY ./flows /app/flows
