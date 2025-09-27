@@ -7,6 +7,7 @@ from starlette.responses import Response
 
 from src.metrics import METRICS
 from src.routes import common_router
+from src.schema_docs import build_markdown
 from src.settings import LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, SERVER_HOST, SERVER_PORT
 
 logging.basicConfig(
@@ -35,7 +36,7 @@ def description_route() -> dict:
 
 @app.get("/schema")
 def schema_route() -> dict:
-    return {"message": "Here will be a schema of database"}
+    return {"schema_markdown": build_markdown()}
 
 
 fastapi_metrics = Instrumentator().instrument(app)
