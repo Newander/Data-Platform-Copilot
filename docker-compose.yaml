@@ -14,7 +14,7 @@ services:
   # Воркер/агент, который будет исполнять твои потоки
   prefect-worker:
     build:
-      context: .
+      context: infrastructure/
       dockerfile: Dockerfile.prefect-worker
     depends_on:
       - prefect
