@@ -67,7 +67,7 @@ Content-Type: application/json
 
 {
   "table": "events",
-  "where": "event_ts >= '2024-01-01'",
+  "where": "event_ts >= '2024-01-01' and amount > 0",
   "limit": 50000
 }
 
@@ -112,7 +112,7 @@ GET http://localhost:8080/schema
 ### Schema Refresh
 POST http://localhost:8080/schema/refresh
 
-###
+### Demo -> Seed -> Events
 POST http://localhost:8080/demo/seed/events
 Content-Type: application/json
 
