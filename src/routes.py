@@ -1,5 +1,6 @@
 import re
 import time
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -9,10 +10,14 @@ from src.chain import nl_to_sql, make_plan, refine
 from src.dbt_generator import generate_dbt_model, materialize_files_to_disk
 from src.dq import run_checks, render_markdown_report, fetch_table_sample, profile_df
 from src.github_client import create_branch, upsert_file, create_pull_request, GitHubError
+from src.demo_seed import seed_events
 from src.metrics import METRICS
 from src.settings import DQ_DEFAULT_LIMIT
 from src.settings import ROW_LIMIT, DBT_DIR, GIT_DEFAULT_BRANCH
 from src.sql_runner import extract_sql_from_markdown, sql_run, IncorrectQuestionError, is_safe, validate_sql
+from src.schema_docs import write_schema_docs
+from src.settings import ROW_LIMIT
+from src.sql_runner import extract_sql_from_markdown, sql_run, IncorrectQuestionError, is_safe
 
 common_router = APIRouter()
 
@@ -336,3 +341,49 @@ async def dq_check(inp: DQCheckIn):
         markdown_report=md,
         sample_rows=sample.to_dict(orient="records"),
     )
+
+
+class DemoSeedIn(BaseModel):
+    rows: int | None = 100_000
+
+
+class DemoSeedOut(BaseModel):
+    table: str
+    rows: int
+    min_ts: str
+    max_ts: str
+    schema_docs_path: str
+
+
+@common_router.post("/demo/seed/events", response_model=DemoSeedOut)
+async def demo_seed_events(inp: DemoSeedIn):
+    stats = seed_events(n_rows=inp.rows or 100_000)
+    # обновим schema_docs.md и сбросим кэш промпта
+    path = write_schema_docs()
+    try:
+        load_schema_docs.cache_clear()  # type: ignore[attr-defined]
+    except Exception:
+        pass
+    return DemoSeedOut(
+        table=stats["table"],
+        rows=stats["rows"],
+        min_ts=stats["min_ts"],
+        max_ts=stats["max_ts"],
+        schema_docs_path=path,
+    )
+
+
+class SchemaRefreshOut(BaseModel):
+    schema_docs_path: str
+    size_bytes: int
+
+
+@common_router.post("/schema/refresh", response_model=SchemaRefreshOut)
+async def schema_refresh():
+    path = write_schema_docs()
+    try:
+        load_schema_docs.cache_clear()  # type: ignore[attr-defined]
+    except Exception:
+        pass
+    p = Path(path)
+    return SchemaRefreshOut(schema_docs_path=path, size_bytes=p.stat().st_size if p.exists() else 0)

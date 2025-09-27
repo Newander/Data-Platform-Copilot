@@ -1,9 +1,35 @@
-tables:
-  customers(customer_id PK, country, signup_date)
-  orders(order_id PK, customer_id FK→customers, order_ts, total_amount, currency)
-  items(order_id FK→orders, sku, qty, unit_price)
+# Data Warehouse Schema (auto-generated)
 
-business notes:
-- Revenue = SUM(orders.total_amount) in EUR (в демо все EUR).
-- Top countries by revenue = group by customers.country order by revenue desc.
-- 2024 = filter where order_ts >= '2024-01-01' and < '2025-01-01'
+## customers
+
+| column | type | pk | not_null | description |
+|---|---|---:|---:|---|
+| customer_id | BIGINT |  |  |  |
+| country | VARCHAR |  |  |  |
+| signup_date | VARCHAR |  |  |  |
+
+## items
+
+| column | type | pk | not_null | description |
+|---|---|---:|---:|---|
+| order_id | BIGINT |  |  |  |
+| sku | VARCHAR |  |  |  |
+| qty | BIGINT |  |  |  |
+| unit_price | DOUBLE |  |  |  |
+
+## orders
+
+| column | type | pk | not_null | description |
+|---|---|---:|---:|---|
+| order_id | BIGINT |  |  |  |
+| customer_id | BIGINT |  |  |  |
+| order_ts | VARCHAR |  |  |  |
+| currency | VARCHAR |  |  |  |
+| total_amount | DOUBLE |  |  |  |
+
+## v_revenue_by_country
+
+| column | type | pk | not_null | description |
+|---|---|---:|---:|---|
+| country | VARCHAR |  |  |  |
+| revenue | DOUBLE |  |  |  |

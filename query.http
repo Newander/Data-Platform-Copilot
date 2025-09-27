@@ -29,7 +29,7 @@ Content-Type: application/json
   "max_steps": 4
 }
 
-### Generate Schema
+### Generate Schema model and github
 POST http://localhost:8080/dbt/generate
 Content-Type: application/json
 
@@ -39,7 +39,7 @@ Content-Type: application/json
   "write": true
 }
 
-###
+### DBT -> Preview
 POST http://localhost:8080/dbt/preview
 Content-Type: application/json
 
@@ -48,7 +48,7 @@ Content-Type: application/json
   "limit_override": 10
 }
 
-###
+### DBT -> PR
 POST http://localhost:8080/dbt/pr
 Content-Type: application/json
 
@@ -105,3 +105,9 @@ Content-Type: application/json
   ],
   "sample_limit": 80000
 }
+
+### Schema
+GET http://localhost:8080/schema
+
+### Schema Refresh
+POST http://localhost:8080/schema/refresh
