@@ -7,8 +7,10 @@ from pydantic import BaseModel, Field
 
 from src.chain import nl_to_sql, make_plan, refine
 from src.dbt_generator import generate_dbt_model, materialize_files_to_disk
+from src.dq import run_checks, render_markdown_report, fetch_table_sample, profile_df
 from src.github_client import create_branch, upsert_file, create_pull_request, GitHubError
 from src.metrics import METRICS
+from src.settings import DQ_DEFAULT_LIMIT
 from src.settings import ROW_LIMIT, DBT_DIR, GIT_DEFAULT_BRANCH
 from src.sql_runner import extract_sql_from_markdown, sql_run, IncorrectQuestionError, is_safe, validate_sql
 
@@ -268,3 +270,69 @@ async def dbt_pr(inp: DbtPRIn):
         return DbtPROut(branch=inp.branch, files_committed=committed, pr_url=pr.get("html_url", ""))
     except GitHubError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+class DQProfileIn(BaseModel):
+    table: str
+    where: str | None = None
+    limit: int | None = None
+
+
+class DQProfileOut(BaseModel):
+    profile: dict
+    sample_rows: list
+
+
+@common_router.post("/dq/profile", response_model=DQProfileOut)
+async def dq_profile(inp: DQProfileIn):
+    METRICS.inc("dq_requests_total", {"route": "profile"})
+    df = fetch_table_sample(inp.table, where=inp.where, limit=inp.limit or DQ_DEFAULT_LIMIT)
+    prof = profile_df(df)
+    return DQProfileOut(
+        profile=prof,
+        sample_rows=df.head(min(len(df), 20)).to_dict(orient="records"),
+    )
+
+
+class DQRule(BaseModel):
+    type: str  # not_null|unique|range|freshness|anomaly
+    column: str | None = None
+    min: float | None = None
+    max: float | None = None
+    max_age_hours: int | None = None
+    sigma: float | None = None
+
+
+class DQCheckIn(BaseModel):
+    table: str
+    where: str | None = None
+    rules: list[DQRule]
+    sample_limit: int | None = None
+
+
+class DQCheckOut(BaseModel):
+    passed: bool
+    results: list[dict]
+    markdown_report: str
+    sample_rows: list
+
+
+@common_router.post("/dq/check", response_model=DQCheckOut)
+async def dq_check(inp: DQCheckIn):
+    METRICS.inc("dq_requests_total", {"route": "check"})
+    prof, results, sample = run_checks(
+        table=inp.table,
+        where=inp.where,
+        rules=[r.model_dump() for r in inp.rules],
+        sample_limit=inp.sample_limit or DQ_DEFAULT_LIMIT,
+    )
+    md = render_markdown_report(inp.table, inp.where, prof, results)
+    passed = all(r.passed for r in results)
+    # Телеметрия
+    METRICS.inc("dq_checks_total", {"passed": "true" if passed else "false"})
+    return DQCheckOut(
+        passed=passed,
+        results=[{"rule": r.rule, "passed": r.passed, "details": r.details} for r in results],
+        markdown_report=md,
+        sample_rows=sample.to_dict(orient="records"),
+    )

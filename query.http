@@ -57,10 +57,51 @@ Content-Type: application/json
   "branch": "feat/mart_user_retention",
   "files": {
     "models/mart_user_retention.sql": "SELECT 1 AS x",
-    "models/schema.yml": "version: 2nmodels:n  - name: mart_user_retentionn    columns: []n"
+    "models/schema.yml": "version: 2nmodels:n  - name: mart_user_retention    columns: []n"
   }
 }
 
 ###
+POST http://localhost:8080/dq/profile
+Content-Type: application/json
 
+{
+  "table": "events",
+  "where": "event_ts >= '2024-01-01'",
+  "limit": 50000
+}
 
+###
+POST http://localhost:8080/dq/check
+Content-Type: application/json
+
+{
+  "table": "events",
+  "where": "event_ts >= '2024-01-01' AND event_ts < '2025-01-01'",
+  "rules": [
+    {
+      "type": "not_null",
+      "column": "user_id"
+    },
+    {
+      "type": "unique",
+      "column": "event_id"
+    },
+    {
+      "type": "range",
+      "column": "amount",
+      "min": 0
+    },
+    {
+      "type": "freshness",
+      "column": "event_ts",
+      "max_age_hours": 24
+    },
+    {
+      "type": "anomaly",
+      "column": "amount",
+      "sigma": 3.0
+    }
+  ],
+  "sample_limit": 80000
+}

@@ -29,4 +29,9 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPO")  # format "owner/repo"
 GIT_DEFAULT_BRANCH = os.getenv("GIT_DEFAULT_BRANCH", "main")
 GIT_AUTHOR_NAME = os.getenv("GIT_AUTHOR_NAME", "Data Platform Copilot")
-GIT_AUTHOR_EMAIL = os.getenv("GIT_AUTHOR_EMAIL", "bot@example.com")
+GIT_AUTHOR_EMAIL = os.getenv("GIT_AUTHOR_EMAIL", "bot@example.com")# в конец файла
+# Data Quality
+DQ_DEFAULT_LIMIT = int(os.getenv("DQ_DEFAULT_LIMIT", "10000"))  # сколько строк тянуть на профиль
+DQ_MAX_LIMIT = int(os.getenv("DQ_MAX_LIMIT", "200000"))  # предохранитель
+DQ_DEFAULT_SIGMA = float(os.getenv("DQ_DEFAULT_SIGMA", "3.0"))  # для z-score
+
