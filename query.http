@@ -49,3 +49,18 @@ Content-Type: application/json
 }
 
 ###
+POST http://localhost:8080/dbt/pr
+Content-Type: application/json
+
+{
+  "title": "Add mart_user_retention model",
+  "branch": "feat/mart_user_retention",
+  "files": {
+    "models/mart_user_retention.sql": "SELECT 1 AS x",
+    "models/schema.yml": "version: 2nmodels:n  - name: mart_user_retentionn    columns: []n"
+  }
+}
+
+###
+
+
