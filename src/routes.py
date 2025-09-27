@@ -390,8 +390,10 @@ async def schema_refresh():
     return SchemaRefreshOut(schema_docs_path=path, size_bytes=p.stat().st_size if p.exists() else 0)
 
 
+# src/routes.py — рядом с моделями оркестратора
 class OrchestrateRunIn(BaseModel):
     flow_name: str
+    deployment_name: str | None = None
     params: dict | None = None
 
 
@@ -402,14 +404,13 @@ class OrchestrateRunOut(BaseModel):
 
 @common_router.post("/orchestrate/run", response_model=OrchestrateRunOut)
 async def orchestrate_run(inp: OrchestrateRunIn):
-    res = await run_flow(inp.flow_name, inp.params)
-    return OrchestrateRunOut(run_id=res.get("id"), details=res)
+    res = await run_flow(inp.flow_name, inp.deployment_name, inp.params)
+    # Prefect обычно возвращает {"id": "<flow_run_id>", ...}
+    return OrchestrateRunOut(run_id=res.get("id", ""), details=res)
 
 
-class OrchestrateStatusOut(BaseModel):
-    run_id: str
-    state: str
-    details: dict
+class OrchestrateStatusOut(OrchestrateRunOut):
+    state: str | None
 
 
 @common_router.get("/orchestrate/status/{run_id}", response_model=OrchestrateStatusOut)

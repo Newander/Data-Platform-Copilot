@@ -9,7 +9,9 @@ services:
       PREFECT_API_URL: ${PREFECT_API_URL}
     ports:
       - "4200:4200"        # UI на http://localhost:4200
-    networks: [prefnet]
+    networks: [ prefnet ]
+    volumes:
+      - ./flows:/app/flows:ro
 
   # Воркер/агент, который будет исполнять твои потоки
   prefect-worker:
@@ -26,42 +28,42 @@ services:
       bash -lc "
       prefect version &&
       (prefect work-queue create ${WORK_QUEUE} || true) &&
-      prefect agent start -q ${WORK_QUEUE}
+      prefect start -q ${WORK_QUEUE}
       "
     volumes:
       - ./flows:/app/flows:ro
-    networks: [prefnet]
+    networks: [ prefnet ]
 
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    restart: unless-stopped
-    volumes:
-      - ollama:/root/.ollama
-    healthcheck:
-      test: [ "CMD", "ollama", "list" ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
-    env_file: .env
-    environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./src:/src/
-      - ./data:/data
-      - ./db:/db
-    command: granian --interface asgi --host 0.0.0.0 --port 8080 --workers 1 main:app
+#  ollama:
+#    image: ollama/ollama:latest
+#    ports:
+#      - "11434:11434"
+#    restart: unless-stopped
+#    volumes:
+#      - ollama:/root/.ollama
+#    healthcheck:
+#      test: [ "CMD", "ollama", "list" ]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 10
+#
+#  api:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile.api
+#    env_file: .env
+#    environment:
+#      - OLLAMA_BASE_URL=http://ollama:11434
+#    ports:
+#      - "8080:8080"
+#    volumes:
+#      - ./src:/src/
+#      - ./data:/data
+#      - ./db:/db
+#    command: granian --interface asgi --host 0.0.0.0 --port 8080 --workers 1 main:app
 
 volumes:
   ollama:
 
 networks:
-  prefnet: {}
+  prefnet: { }

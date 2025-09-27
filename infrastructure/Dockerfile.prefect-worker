@@ -7,5 +7,8 @@ WORKDIR /app
 # Add/remove as needed
 
 RUN pip install --no-cache-dir duckdb pandas
+
 # Put flow code into a separate volume (see volumes in compose)
-# COPY ./flows /app/flows
+COPY ../flows /app/flows
+
+ENV PYTHONPATH="/app:/app/flows:${PYTHONPATH}"

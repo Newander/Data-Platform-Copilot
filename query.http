@@ -120,5 +120,16 @@ Content-Type: application/json
   "rows": 150000
 }
 
-###
+### orchestrate/run
+POST http://localhost:8080/orchestrate/run
+Content-Type: application/json
 
+{
+  "flow_name": "daily_sales_flow",
+  "deployment_name": "daily_sales_depl",
+  "params": {
+    "days_back": 1
+  }
+}
+
+###
