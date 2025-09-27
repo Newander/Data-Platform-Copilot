@@ -31,3 +31,6 @@ Content-Type: application/json
 
 ### Schema
 GET http://localhost:8080/schema
+
+### Schema Refresh
+POST http://localhost:8080/schema/refresh
