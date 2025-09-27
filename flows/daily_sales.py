@@ -5,7 +5,7 @@ from prefect import flow, task
 
 @task
 def extract():
-    # заглушка для демо
+    # stub for demo
     return {"rows": 123, "date": datetime.now(tz=UTC).isoformat()}
 
 
@@ -17,7 +17,7 @@ def transform(payload):
 
 @task
 def load(payload):
-    # тут могла бы быть запись в DWH
+    # here could be writing to DWH
     return f"Loaded {payload['rows_transformed']} rows on {payload['date']}"
 
 

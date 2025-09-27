@@ -1,0 +1,39 @@
+# Prefect project configuration
+name: flows
+version: null
+
+# build section defines how the code and assets are built
+build: null
+
+# push section is where the code or artifacts are stored
+push: null
+
+# pull section defines how the code is retrieved at runtime
+pull:
+  - prefect.deployments.steps.git_clone_project:
+      repository: "."
+      branch: null
+      include_submodules: false
+
+# work_pools section defines the work pools that deployments can be submitted to
+work_pools:
+  default-pool:
+    type: process
+    config:
+      base_job_template:
+        env:
+          PYTHONPATH: "{{ prefect.projects.directory }}"
+
+# deployments section defines the deployments that belong to this project
+deployments:
+  - name: daily-sales-deployment
+    version: null
+    tags: []
+    description: Daily sales data processing flow
+    entrypoint: daily_sales.py:daily_sales_flow
+    parameters:
+      days_back: 1
+    work_pool:
+      name: default-pool
+      work_queue_name: default
+      job_variables: {}
