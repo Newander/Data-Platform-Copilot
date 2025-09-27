@@ -50,8 +50,10 @@ def seed_events(n_rows: int = 100_000) -> Dict[str, Any]:
         WHEN r1 >= 0.98 THEN round(r5 * 100, 2)                       -- refund
         ELSE 0
       END AS amount,
-      dateadd('second', -CAST(floor(random()*86400) AS INTEGER),
-        dateadd('day', -CAST(floor(random()*180) AS INTEGER), now())
+      (
+         now()
+         - CAST(floor(random() * 180) AS INTEGER) * INTERVAL '1 day'
+         - CAST(floor(random() * 86400) AS INTEGER) * INTERVAL '1 second'
       )::TIMESTAMP AS event_ts,
       CASE
         WHEN r2 < 0.25 THEN 'PL'

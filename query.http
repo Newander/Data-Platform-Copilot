@@ -61,7 +61,7 @@ Content-Type: application/json
   }
 }
 
-###
+### DQ -> profile
 POST http://localhost:8080/dq/profile
 Content-Type: application/json
 
@@ -71,7 +71,7 @@ Content-Type: application/json
   "limit": 50000
 }
 
-###
+### DQ -> check
 POST http://localhost:8080/dq/check
 Content-Type: application/json
 
@@ -111,3 +111,14 @@ GET http://localhost:8080/schema
 
 ### Schema Refresh
 POST http://localhost:8080/schema/refresh
+
+###
+POST http://localhost:8080/demo/seed/events
+Content-Type: application/json
+
+{
+  "rows": 150000
+}
+
+###
+

@@ -8,16 +8,16 @@ from pydantic import BaseModel, Field
 
 from src.chain import nl_to_sql, make_plan, refine
 from src.dbt_generator import generate_dbt_model, materialize_files_to_disk
+from src.demo_seed import seed_events
 from src.dq import run_checks, render_markdown_report, fetch_table_sample, profile_df
 from src.github_client import create_branch, upsert_file, create_pull_request, GitHubError
-from src.demo_seed import seed_events
 from src.metrics import METRICS
-from src.settings import DQ_DEFAULT_LIMIT
-from src.settings import ROW_LIMIT, DBT_DIR, GIT_DEFAULT_BRANCH
-from src.sql_runner import extract_sql_from_markdown, sql_run, IncorrectQuestionError, is_safe, validate_sql
 from src.schema_docs import write_schema_docs
+from src.settings import DBT_DIR, GIT_DEFAULT_BRANCH
+from src.settings import DQ_DEFAULT_LIMIT
 from src.settings import ROW_LIMIT
 from src.sql_runner import extract_sql_from_markdown, sql_run, IncorrectQuestionError, is_safe
+from src.sql_runner import validate_sql
 
 common_router = APIRouter()
 
