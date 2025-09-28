@@ -4,9 +4,9 @@ Database connection factory module.
 This module provides a factory pattern to create the appropriate database
 connection based on the configured database type (DuckDB or PostgreSQL).
 """
+from .base import DatabaseConnection
 from .duckdb_connection import DuckDBConnection
 from .postgresql_connection import PostgreSQLConnection
-from .base import DatabaseConnection
 
 """
 DuckDB connection module using SQLAlchemy.
@@ -23,6 +23,18 @@ from sqlalchemy.orm import Session
 from src.settings import settings
 
 
+def create_connection() -> DatabaseConnection:
+    match settings.database.database_type:
+        case 'duckdb':
+            db_connection = DuckDBConnection()
+        case 'postgresql':
+            db_connection = PostgreSQLConnection()
+        case x:
+            raise DatabaseError(f'Not supported database type: {x}')
+
+    return db_connection
+
+
 class DatabaseError(Exception):
     """ Defines a database connection error. Without extra details """
 
@@ -34,15 +46,8 @@ class CMSession:
     _current_connection: DatabaseConnection
 
     def __new__(cls, *args, **kwargs):
-        if hasattr(cls, '_current_connection'):
-            match settings.database.database_type:
-                case 'duckdb':
-                    db_connection = DuckDBConnection()
-                case 'postgresql':
-                    db_connection = PostgreSQLConnection()
-                case x:
-                    raise DatabaseError(f'Not supported database type: {x}')
-            cls._current_connection = db_connection
+        if not hasattr(cls, '_current_connection'):
+            cls._current_connection = create_connection()
 
         kwargs['db_connection'] = cls._current_connection
 
@@ -50,7 +55,7 @@ class CMSession:
         instance.__init__(*args, **kwargs)
         return instance
 
-    def __init__(self, db_connection: DatabaseConnection = DatabaseConnection()):
+    def __init__(self, db_connection: DatabaseConnection):
         self.db_connection = db_connection
         self.session: Session | None = None
 

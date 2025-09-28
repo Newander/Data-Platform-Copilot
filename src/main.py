@@ -5,6 +5,7 @@ from prometheus_client import generate_latest
 from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.responses import Response
 
+from src.lifespan import lifespan_routine
 from src.metrics import METRICS
 from src.route.chat import chat_router
 from src.route.namespace import namespace_router
@@ -19,7 +20,8 @@ logging.basicConfig(
 )
 app = FastAPI(
     title="Data Pilot FastApi Backend Service",
-    debug=True
+    debug=True,
+    lifespan=lifespan_routine
 )
 
 app.include_router(chat_router)

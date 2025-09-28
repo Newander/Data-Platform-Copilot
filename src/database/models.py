@@ -1,7 +1,5 @@
-from typing import Annotated
-
-from sqlalchemy import MetaData, Column, Integer, String
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import MetaData, Integer, String
+from sqlalchemy.orm import declarative_base, Mapped, mapped_column
 
 from src.settings import settings
 
@@ -16,5 +14,5 @@ class BaseSQLModel(DeclarativeBase):
 class Namespace(BaseSQLModel):
     __tablename__ = "namespace"
 
-    id: Annotated[int, Column(Integer, primary_key=True, autoincrement=True)]
-    name: Annotated[str, Column(String(1024), nullable=False)]
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(1024), nullable=False)

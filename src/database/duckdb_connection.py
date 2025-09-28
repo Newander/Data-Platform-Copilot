@@ -12,7 +12,7 @@ from typing import Optional
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from .base import DatabaseConnection
+from src.database.base import DatabaseConnection
 from src.settings import DB_DIR, DB_FILE_NAME
 
 

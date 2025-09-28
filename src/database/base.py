@@ -1,7 +1,7 @@
 import logging
 from typing import Protocol
 
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine, text, MetaData
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -35,3 +35,7 @@ class DatabaseConnection(Protocol):
         except SQLAlchemyError as e:
             logging.error(f"Database connection test failed: {e}")
             raise
+
+    def create_all(self, metadata: MetaData) -> None:
+        metadata.create_all(self.engine)
+        logging.info("Database isi initialized")

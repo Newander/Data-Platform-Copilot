@@ -1,6 +1,7 @@
 fixture-folder/
 plan.md
 .env
+.env_local
 *.duckdb
 .venv
 .idea
