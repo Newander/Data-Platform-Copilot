@@ -7,11 +7,9 @@ environment variable support, and easy testing capabilities.
 
 import os
 from pathlib import Path
-from typing import Literal, Any, Type, TypeVar
+from typing import Literal, Any, Type
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-
-T = TypeVar('T', bound=BaseModel)
 
 
 def load_env_value(env_key: str, default: Any = None, cast_type: Type = str):
@@ -34,7 +32,7 @@ class ConfigMixin:
     """Mixin to provide environment variable loading to config classes."""
 
     @classmethod
-    def from_env(cls: Type[T]) -> T:
+    def from_env[T: BaseModel](cls: Type[T]) -> T:
         """Create instance from environment variables."""
         return cls()
 
@@ -256,7 +254,7 @@ class DataQualityConfig(BaseModel, ConfigMixin):
 class DataConfig(BaseModel, ConfigMixin):
     """Data directory and file configuration settings."""
 
-    data_dir: Optional[Path] = Field(default=None, description="Data directory path")
+    data_dir: Path | None = Field(default=None, description="Data directory path")
 
     def __init__(self, **kwargs):
         if 'data_dir' not in kwargs:
