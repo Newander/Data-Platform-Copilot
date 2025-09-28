@@ -20,7 +20,7 @@ from src.settings import ROW_LIMIT
 from src.sql_runner import extract_sql_from_markdown, sql_run, IncorrectQuestionError, is_safe
 from src.sql_runner import validate_sql
 
-common_router = APIRouter()
+chat_router = APIRouter()
 
 
 class AskRequest(BaseModel):
@@ -41,7 +41,7 @@ class ChatOut(BaseModel):
     rows: list
 
 
-@common_router.post("/chat", response_model=ChatOut)
+@chat_router.post("/chat", response_model=ChatOut)
 async def chat(inp: ChatIn):
     sql_md = await nl_to_sql(inp.question, ROW_LIMIT)
     if not sql_md:
@@ -75,7 +75,7 @@ class AgentOut(BaseModel):
     telemetry: dict
 
 
-@common_router.post("/chat/agent", response_model=AgentOut)
+@chat_router.post("/chat/agent", response_model=AgentOut)
 async def chat_agent(inp: AgentIn):
     METRICS.inc("ai_requests_total", {"route": "agent"})
     plan = await make_plan(inp.question)
@@ -199,7 +199,7 @@ class DbtGenOut(BaseModel):
     written_paths: Optional[dict[str, str]] = None
 
 
-@common_router.post("/dbt/generate", response_model=DbtGenOut)
+@chat_router.post("/dbt/generate", response_model=DbtGenOut)
 async def dbt_generate(inp: DbtGenIn):
     model_name, model_sql, schema_yml = await generate_dbt_model(
         question=inp.question,
@@ -226,7 +226,7 @@ class DbtPreviewOut(BaseModel):
     rows: list
 
 
-@common_router.post("/dbt/preview", response_model=DbtPreviewOut)
+@chat_router.post("/dbt/preview", response_model=DbtPreviewOut)
 async def dbt_preview(inp: DbtPreviewIn):
     sql = inp.model_sql
     # валидация и гарантия LIMIT:
@@ -253,7 +253,7 @@ class DbtPRIn(BaseModel):
     files: dict[str, str] = Field(..., description="Repo-relative paths → contents (e.g., models/x.sql)")
 
 
-@common_router.post("/dbt/pr", response_model=DbtPROut)
+@chat_router.post("/dbt/pr", response_model=DbtPROut)
 async def dbt_pr(inp: DbtPRIn):
     try:
         # создаём/проверяем ветку
@@ -289,7 +289,7 @@ class DQProfileOut(BaseModel):
     sample_rows: list
 
 
-@common_router.post("/dq/profile", response_model=DQProfileOut)
+@chat_router.post("/dq/profile", response_model=DQProfileOut)
 async def dq_profile(inp: DQProfileIn):
     METRICS.inc("dq_requests_total", {"route": "profile"})
     df = fetch_table_sample(inp.table, where=inp.where, limit=inp.limit or DQ_DEFAULT_LIMIT)
@@ -323,7 +323,7 @@ class DQCheckOut(BaseModel):
     sample_rows: list
 
 
-@common_router.post("/dq/check", response_model=DQCheckOut)
+@chat_router.post("/dq/check", response_model=DQCheckOut)
 async def dq_check(inp: DQCheckIn):
     METRICS.inc("dq_requests_total", {"route": "check"})
     prof, results, sample = run_checks(
@@ -356,7 +356,7 @@ class DemoSeedOut(BaseModel):
     schema_docs_path: str
 
 
-@common_router.post("/demo/seed/events", response_model=DemoSeedOut)
+@chat_router.post("/demo/seed/events", response_model=DemoSeedOut)
 async def demo_seed_events(inp: DemoSeedIn):
     stats = seed_events(n_rows=inp.rows or 100_000)
     # обновим schema_docs.md и сбросим кэш промпта
@@ -379,7 +379,7 @@ class SchemaRefreshOut(BaseModel):
     size_bytes: int
 
 
-@common_router.post("/schema/refresh", response_model=SchemaRefreshOut)
+@chat_router.post("/schema/refresh", response_model=SchemaRefreshOut)
 async def schema_refresh():
     path = write_schema_docs()
     try:
@@ -390,7 +390,7 @@ async def schema_refresh():
     return SchemaRefreshOut(schema_docs_path=path, size_bytes=p.stat().st_size if p.exists() else 0)
 
 
-# src/routes.py — рядом с моделями оркестратора
+# src/chat.py — рядом с моделями оркестратора
 class OrchestrateRunIn(BaseModel):
     flow_name: str
     deployment_name: str | None = None
@@ -402,7 +402,7 @@ class OrchestrateRunOut(BaseModel):
     details: dict
 
 
-@common_router.post("/orchestrate/run", response_model=OrchestrateRunOut)
+@chat_router.post("/orchestrate/run", response_model=OrchestrateRunOut)
 async def orchestrate_run(inp: OrchestrateRunIn):
     res = await run_flow(inp.flow_name, inp.deployment_name, inp.params)
     # Prefect обычно возвращает {"id": "<flow_run_id>", ...}
@@ -413,7 +413,7 @@ class OrchestrateStatusOut(OrchestrateRunOut):
     state: str | None
 
 
-@common_router.get("/orchestrate/status/{run_id}", response_model=OrchestrateStatusOut)
+@chat_router.get("/orchestrate/status/{run_id}", response_model=OrchestrateStatusOut)
 async def orchestrate_status(run_id: str):
     res = await get_status(run_id)
     return OrchestrateStatusOut(run_id=run_id, state=res.get("state", {}).get("type", "unknown"), details=res)

@@ -6,7 +6,8 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.responses import Response
 
 from src.metrics import METRICS
-from src.routes import common_router
+from src.route.chat import chat_router
+from src.route.namespace import namespace_router
 from src.schema_docs import build_markdown
 from src.settings import LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, SERVER_HOST, SERVER_PORT
 
@@ -21,7 +22,8 @@ app = FastAPI(
     debug=True
 )
 
-app.include_router(common_router)
+app.include_router(chat_router)
+app.include_router(namespace_router)
 
 
 @app.get("/health")
