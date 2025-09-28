@@ -51,6 +51,7 @@ class DatabaseConfig(BaseModel, ConfigMixin):
     dir: Path | None = Field(None, description="Database directory path for DuckDB")
 
     # Relational database configuration
+    driver: str | None = Field(None, description="Relational database driver name")
     host: str | None = Field(None, description="Relational database host")
     port: int | None = Field(None, description="Relational database port")
     database: str | None = Field(None, description="Relational database name")
@@ -69,18 +70,20 @@ class DatabaseConfig(BaseModel, ConfigMixin):
             kwargs['dir'] = Path(dir_val) if dir_val else None
 
         # Relational database environment variables
+        if 'driver' not in kwargs:
+            kwargs['driver'] = load_env_value('DB_DRIVER', 'postgresql')
         if 'host' not in kwargs:
-            kwargs['host'] = load_env_value('POSTGRES_HOST', 'localhost')
+            kwargs['host'] = load_env_value('DB_HOST', 'localhost')
         if 'port' not in kwargs:
-            kwargs['port'] = load_env_value('POSTGRES_PORT', 5432, int)
+            kwargs['port'] = load_env_value('DB_PORT', 5432, int)
         if 'database' not in kwargs:
-            kwargs['database'] = load_env_value('POSTGRES_DB', 'data_pilot')
+            kwargs['database'] = load_env_value('DB_DB', 'data_pilot')
         if 'user' not in kwargs:
-            kwargs['user'] = load_env_value('POSTGRES_USER', 'postgres')
+            kwargs['user'] = load_env_value('DB_USER', 'postgres')
         if 'password' not in kwargs:
-            kwargs['password'] = load_env_value('POSTGRES_PASSWORD')
+            kwargs['password'] = load_env_value('DB_PASSWORD')
         if 'schema' not in kwargs:
-            kwargs['schema'] = load_env_value('POSTGRES_SCHEMA', 'public')
+            kwargs['schema'] = load_env_value('DB_SCHEMA', 'public')
 
         super().__init__(**kwargs)
 
@@ -399,12 +402,13 @@ settings = Settings()
 DATABASE_TYPE = settings.database.database_type
 DB_FILE_NAME = settings.database.file_name
 DB_DIR = settings.database.dir
-POSTGRES_HOST = settings.database.host
-POSTGRES_PORT = settings.database.port
-POSTGRES_DB = settings.database.database
-POSTGRES_USER = settings.database.user
-POSTGRES_PASSWORD = settings.database.password
-POSTGRES_SCHEMA = settings.database.default_schema
+DB_DRIVER = settings.database.driver
+DB_HOST = settings.database.host
+DB_PORT = settings.database.port
+DB_DB = settings.database.database
+DB_USER = settings.database.user
+DB_PASSWORD = settings.database.password
+DB_SCHEMA = settings.database.default_schema
 ROW_LIMIT = settings.sql.row_limit
 QUERY_TIMEOUT_MS = settings.sql.query_timeout_ms
 LLM_PROVIDER = settings.llm.provider
