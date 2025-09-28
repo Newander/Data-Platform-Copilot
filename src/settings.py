@@ -40,16 +40,48 @@ class ConfigMixin:
 class DatabaseConfig(BaseModel, ConfigMixin):
     """Database-related configuration settings."""
 
-    file_name: str = Field(default="demo.duckdb", description="Database file name")
-    dir: Path | None = Field(default=None, description="Database directory path")
+    # Database type selection
+    database_type: Literal["duckdb", "postgresql"] = Field(
+        default="duckdb",
+        description="Type of database to use (duckdb or postgresql)"
+    )
+
+    # DuckDB (maybe, SQLite?) configuration
+    file_name: str | None = Field(None, description="Database file name for DuckDB")
+    dir: Path | None = Field(None, description="Database directory path for DuckDB")
+
+    # Relational database configuration
+    host: str | None = Field(None, description="Relational database host")
+    port: int | None = Field(None, description="Relational database port")
+    database: str | None = Field(None, description="Relational database name")
+    user: str | None = Field(None, description="Relational database username")
+    password: str | None = Field(None, description="Relational database password")
+    default_schema: str | None = Field(None, description="Relational database default schema")
 
     def __init__(self, **kwargs):
         # Load from environment if not provided
+        if 'database_type' not in kwargs:
+            kwargs['database_type'] = load_env_value('DATABASE_TYPE', 'duckdb').lower()
         if 'file_name' not in kwargs:
             kwargs['file_name'] = load_env_value('DB_FILE_NAME', 'demo.duckdb')
         if 'dir' not in kwargs:
             dir_val = load_env_value('DB_DIR')
             kwargs['dir'] = Path(dir_val) if dir_val else None
+
+        # Relational database environment variables
+        if 'host' not in kwargs:
+            kwargs['host'] = load_env_value('POSTGRES_HOST', 'localhost')
+        if 'port' not in kwargs:
+            kwargs['port'] = load_env_value('POSTGRES_PORT', 5432, int)
+        if 'database' not in kwargs:
+            kwargs['database'] = load_env_value('POSTGRES_DB', 'data_pilot')
+        if 'user' not in kwargs:
+            kwargs['user'] = load_env_value('POSTGRES_USER', 'postgres')
+        if 'password' not in kwargs:
+            kwargs['password'] = load_env_value('POSTGRES_PASSWORD')
+        if 'schema' not in kwargs:
+            kwargs['schema'] = load_env_value('POSTGRES_SCHEMA', 'public')
+
         super().__init__(**kwargs)
 
     @field_validator('dir', mode='before')
@@ -58,6 +90,24 @@ class DatabaseConfig(BaseModel, ConfigMixin):
         if v is None:
             return None
         return Path(v) if not isinstance(v, Path) else v
+
+    @field_validator('port')
+    @classmethod
+    def validate_port(cls, v):
+        if not (1 <= v <= 65535):
+            raise ValueError("Relational database port must be between 1 and 65535")
+        return v
+
+    @model_validator(mode='after')
+    def validate_database_config(self):
+        """Validate that required fields are set based on database type."""
+        if self.database_type == "postgresql":
+            if not self.password:
+                raise ValueError("Relational database password is required when using postgresql database type")
+        elif self.database_type == "duckdb":
+            if not self.dir:
+                raise ValueError("Database directory is required when using duckdb database type")
+        return self
 
 
 class SQLConfig(BaseModel, ConfigMixin):
@@ -346,7 +396,15 @@ class Settings(BaseModel):
 settings = Settings()
 
 # Backward compatibility - expose individual settings as module-level variables
+DATABASE_TYPE = settings.database.database_type
 DB_FILE_NAME = settings.database.file_name
+DB_DIR = settings.database.dir
+POSTGRES_HOST = settings.database.host
+POSTGRES_PORT = settings.database.port
+POSTGRES_DB = settings.database.database
+POSTGRES_USER = settings.database.user
+POSTGRES_PASSWORD = settings.database.password
+POSTGRES_SCHEMA = settings.database.default_schema
 ROW_LIMIT = settings.sql.row_limit
 QUERY_TIMEOUT_MS = settings.sql.query_timeout_ms
 LLM_PROVIDER = settings.llm.provider
@@ -356,7 +414,6 @@ OPENROUTER_API_KEY = settings.llm.openrouter_api_key
 OLLAMA_BASE_URL = settings.llm.ollama_base_url
 SERVER_HOST = settings.server.host
 SERVER_PORT = settings.server.port
-DB_DIR = settings.database.dir
 DATA_DIR = settings.data.data_dir
 LOG_LEVEL = settings.logging.level
 LOG_FORMAT = settings.logging.format
