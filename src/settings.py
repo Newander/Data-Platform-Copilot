@@ -112,6 +112,29 @@ class DatabaseConfig(BaseModel, ConfigMixin):
                 raise ValueError("Database directory is required when using duckdb database type")
         return self
 
+    def duck_db_dsn(self) -> str:
+        """Build DuckDB (Or SQLite) connection string."""
+        if not self.password:
+            raise ValueError("PostgreSQL password is required")
+
+        return f"{self.driver}:///{Path(self.dir) / self.file_name}"
+
+    def postgresql_dsn(self) -> str:
+        """Build PostgreSQL (or MySQL or Greenplum and so on) connection string."""
+        if not self.password:
+            raise ValueError("PostgreSQL password is required")
+
+        return f"{self.driver}://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
+
+    def postgresql_parameters(self, url: str) -> dict[str, Any]:
+        return {
+            "host": self.host,
+            "port": self.port,
+            "database": self.database,
+            "user": self.user,
+            "password": self.password,
+        }
+
 
 class SQLConfig(BaseModel, ConfigMixin):
     """SQL execution configuration settings."""
