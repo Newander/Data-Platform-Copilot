@@ -191,7 +191,7 @@ def create_connection() -> DatabaseConnection:
     return db_connection
 
 
-class CMSession:
+class ConnectionCM:
     """ A context manager for database Sessions without support for async or connection/session pools.
         Can be used with any database type and as Depends at FastAPI e.g.
     """

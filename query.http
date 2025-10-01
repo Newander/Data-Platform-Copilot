@@ -1,3 +1,7 @@
+###
+GET http://localhost:8080/namespace
+
+
 ### Correct question
 POST http://localhost:8080/chat
 Content-Type: application/json

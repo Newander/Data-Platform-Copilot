@@ -24,8 +24,6 @@ app = FastAPI(
     lifespan=lifespan_routine
 )
 
-app.include_router(chat_router)
-app.include_router(namespace_router)
 
 
 @app.get("/health")
@@ -52,6 +50,8 @@ def metrics() -> Response:
     payload = METRICS.export_prometheus()
     return Response(content=payload, media_type="text/plain; version=0.0.4; charset=utf-8")
 
+app.include_router(namespace_router)
+app.include_router(chat_router)
 
 if __name__ == "__main__":
     import uvicorn
