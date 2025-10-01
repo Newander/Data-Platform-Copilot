@@ -51,13 +51,13 @@ class DatabaseConfig(BaseModel, ConfigMixin):
     dir: Path | None = Field(None, description="Database directory path for DuckDB")
 
     # Relational database configuration
-    driver: str | None = Field(None, description="Relational database driver name")
     host: str | None = Field(None, description="Relational database host")
     port: int | None = Field(None, description="Relational database port")
     database: str | None = Field(None, description="Relational database name")
     user: str | None = Field(None, description="Relational database username")
     password: str | None = Field(None, description="Relational database password")
     default_schema: str | None = Field(None, description="Relational database default schema")
+    autocommit: bool = Field(True)
 
     def __init__(self, **kwargs):
         # Load from environment if not provided
@@ -70,8 +70,8 @@ class DatabaseConfig(BaseModel, ConfigMixin):
             kwargs['dir'] = Path(dir_val) if dir_val else None
 
         # Relational database environment variables
-        if 'driver' not in kwargs:
-            kwargs['driver'] = load_env_value('DB_DRIVER', 'postgresql')
+        if 'database_type' not in kwargs:
+            kwargs['database_type'] = load_env_value('DB_DRIVER', 'postgresql')
         if 'host' not in kwargs:
             kwargs['host'] = load_env_value('DB_HOST', 'localhost')
         if 'port' not in kwargs:
@@ -114,19 +114,16 @@ class DatabaseConfig(BaseModel, ConfigMixin):
 
     def duck_db_dsn(self) -> str:
         """Build DuckDB (Or SQLite) connection string."""
-        if not self.password:
-            raise ValueError("PostgreSQL password is required")
-
-        return f"{self.driver}:///{Path(self.dir) / self.file_name}"
+        return str(Path(self.dir) / self.file_name)
 
     def postgresql_dsn(self) -> str:
         """Build PostgreSQL (or MySQL or Greenplum and so on) connection string."""
         if not self.password:
             raise ValueError("PostgreSQL password is required")
 
-        return f"{self.driver}://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
+        return f"{self.database_type}://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
 
-    def postgresql_parameters(self, url: str) -> dict[str, Any]:
+    def postgresql_parameters(self) -> dict[str, Any]:
         return {
             "host": self.host,
             "port": self.port,
@@ -425,7 +422,6 @@ settings = Settings()
 DATABASE_TYPE = settings.database.database_type
 DB_FILE_NAME = settings.database.file_name
 DB_DIR = settings.database.dir
-DB_DRIVER = settings.database.driver
 DB_HOST = settings.database.host
 DB_PORT = settings.database.port
 DB_DB = settings.database.database
