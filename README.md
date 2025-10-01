@@ -49,7 +49,7 @@ data-platform-copilot/
 
 ### 1. Clone & prepare
 ```bash
-    git clone https://github.com/<yourname>/data-platform-copilot.git
+    git clone https://github.com/Newander/data-platform-copilot.git
     cd data-platform-copilot
     cp .env.example .env
 ````
