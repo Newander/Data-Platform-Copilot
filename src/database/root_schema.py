@@ -13,8 +13,9 @@ def create_all(cm_manager: ConnectionCM):
             ddl = db_instance.ddl(default_schema)
             connection.execute(ddl)
             logging.info(f"{db_instance.name}: DDL executed: {ddl}")
-            connection.execute(db_instance.default_data())
-            logging.info(f"{db_instance.name}: default data inserted")
+            if default_data := db_instance.default_data(default_schema):
+                connection.execute(default_data)
+                logging.info(f"{db_instance.name}: default data inserted")
 
 
 class DatabaseObject:
@@ -29,9 +30,11 @@ class DatabaseObject:
 
 
 class Namespace(DatabaseObject):
+    name = "namespace"
+
     def ddl(self, default_schema: str) -> str:
         return f"""
-            create table if not exists {default_schema}.namespace
+            create table if not exists {default_schema}.{self.name}
             (
                 id   INTEGER,
                 name VARCHAR(1024)

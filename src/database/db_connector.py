@@ -203,7 +203,7 @@ class ConnectionCM:
         return instance
 
     def __init__(self, db_connection: DatabaseConnection | None = None):
-        self.db_connection = db_connection
+        self.db_connection = db_connection or self._current_connection
 
     def __enter__(self) -> duckdb.DuckDBPyConnection:
         if not self.db_connection:
