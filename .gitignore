@@ -1,5 +1,5 @@
 fixture-folder/
-description.md
+plan.md
 .env
 *.duckdb
 .venv

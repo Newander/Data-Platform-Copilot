@@ -22,6 +22,7 @@ It is designed as a foundation for a full **AI + Data Management platform**, com
 
 ## 🏗️ Project Structure
 
+```
 data-platform-copilot/
 ├─ README.md # This file
 ├─ .env.example # Example environment config
@@ -41,7 +42,7 @@ data-platform-copilot/
 └─ db/
 ├─ init_duckdb.py # Database initialization
 └─ schema_docs.md # Schema documentation
-
+```
 
 ---
 
