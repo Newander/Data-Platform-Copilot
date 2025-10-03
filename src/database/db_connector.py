@@ -1,13 +1,15 @@
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, Protocol
+from typing import Optional
 
 import duckdb
 import psycopg2
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config import settings
+
+ConnectionType = duckdb.DuckDBPyConnection
 
 
 class DatabaseConnection:
@@ -17,7 +19,7 @@ class DatabaseConnection:
             - DuckDB
     """
     dsn: str
-    connection: duckdb.DuckDBPyConnection | None
+    connection: ConnectionType | None
 
     def create_connection(self) -> None:
         raise NotImplementedError
@@ -45,10 +47,6 @@ class DatabaseConnection:
             raise
         if result[0] != 1:
             raise RuntimeError("Connection test failed")
-
-
-class Connection(Protocol):
-    ...
 
 
 class DuckDBContextManager(DatabaseConnection):
@@ -121,20 +119,6 @@ class PostgreSQLContextManager(DatabaseConnection):
             autocommit: bool = False,
             **connection_kwargs
     ):
-        """
-        Initialize PostgreSQL context manager.
-        
-        Args:
-            connection_string: Full PostgreSQL connection string (DSN).
-                              If provided, other connection parameters are ignored.
-            host: PostgreSQL server host
-            port: PostgreSQL server port
-            database: Database name
-            user: Database user
-            password: Database password
-            autocommit: Whether to enable autocommit mode
-            **connection_kwargs: Additional psycopg2 connection parameters
-        """
         self.autocommit = autocommit
         self.connection: Optional[psycopg2.Connection] = None
         self.connection_params = {"conninfo": dsn_string, **connection_kwargs}
@@ -205,7 +189,7 @@ class ConnectionCM:
     def __init__(self, db_connection: DatabaseConnection | None = None):
         self.db_connection = db_connection or self._current_connection
 
-    def __enter__(self) -> duckdb.DuckDBPyConnection:
+    def __enter__(self) -> ConnectionType:
         if not self.db_connection:
             raise DatabaseError("Database connection not initialized")
         self.db_connection.create_connection()
@@ -225,6 +209,6 @@ class ConnectionCM:
             self.db_connection.commit()
 
 
-def opened_connection():
+def opened_connection() -> ConnectionType:
     with ConnectionCM() as connection:
         return connection

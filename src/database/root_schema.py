@@ -4,7 +4,7 @@ from src.database.db_connector import ConnectionCM
 from src.config import settings
 
 
-def create_all(cm_manager: ConnectionCM):
+def create_all(cm_manager: ConnectionCM) -> None:
     """ Creating required tables and objects in the assigned database and default data """
     default_schema = settings.database.default_schema
     with cm_manager as connection:
