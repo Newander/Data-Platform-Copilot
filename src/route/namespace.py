@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from src.config import settings
-from src.database.db_connector import opened_connection
+from src.database.db_connector import opened_connection, ConnectionType
 
 namespace_router = APIRouter(prefix='/namespace')
 
@@ -46,18 +46,23 @@ def list_namespaces(
 
 @namespace_router.post('/')
 def create_namespace(
-        connection: Annotated[Depends(opened_connection)]
+        connection: Annotated[ConnectionType, Depends(opened_connection)],
 ) -> IDNamespace:
     ...
 
 
 @namespace_router.put('/{namespace_id}')
 def edit_namespace(
-        connection=Depends(opened_connection),
+        connection: Annotated[ConnectionType, Depends(opened_connection)],
+        namespace_id: int,
 ) -> IDNamespace:
     ...
 
 
 @namespace_router.delete('/{namespace_id}')
-def edit_namespace(connection=Depends(opened_connection)) -> Message:
+def delete_namespace(
+        connection: Annotated[ConnectionType, Depends(opened_connection)],
+        namespace_id: int,
+) -> Message:
+    # todo: remove also tables
     ...
