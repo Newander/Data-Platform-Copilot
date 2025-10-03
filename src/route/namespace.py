@@ -1,14 +1,24 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from src.database.db_connector import opened_connection
 from src.config import settings
+from src.database.db_connector import opened_connection
 
 namespace_router = APIRouter(prefix='/namespace')
 
 
+class Message(BaseModel):
+    message: str
+
+
 class Namespace(BaseModel):
     name: str
+
+
+class IDNamespace(Namespace):
+    id: int
 
 
 class NamespaceListResponse(BaseModel):
@@ -17,7 +27,9 @@ class NamespaceListResponse(BaseModel):
 
 
 @namespace_router.get('/')
-def list_namespaces(connection=Depends(opened_connection)) -> NamespaceListResponse:
+def list_namespaces(
+        connection=Depends(opened_connection)
+) -> NamespaceListResponse:
     schema_names = connection.execute(
         f"""
         select name
@@ -30,3 +42,22 @@ def list_namespaces(connection=Depends(opened_connection)) -> NamespaceListRespo
         message="OK" if schema_names else "No namespaces created",
         namespaces=[Namespace(name=schema_name) for schema_name, in schema_names]
     )
+
+
+@namespace_router.post('/')
+def create_namespace(
+        connection: Annotated[Depends(opened_connection)]
+) -> IDNamespace:
+    ...
+
+
+@namespace_router.put('/{namespace_id}')
+def edit_namespace(
+        connection=Depends(opened_connection),
+) -> IDNamespace:
+    ...
+
+
+@namespace_router.delete('/{namespace_id}')
+def edit_namespace(connection=Depends(opened_connection)) -> Message:
+    ...
