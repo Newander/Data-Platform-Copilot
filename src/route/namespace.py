@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from src.database.db_connector import opened_connection
-from src.settings import settings
+from src.config import settings
 
 namespace_router = APIRouter(prefix='/namespace')
 

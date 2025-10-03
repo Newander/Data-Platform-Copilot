@@ -10,7 +10,7 @@ from src.metrics import METRICS
 from src.route.chat import chat_router
 from src.route.namespace import namespace_router
 from src.schema_docs import build_markdown
-from src.settings import LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, SERVER_HOST, SERVER_PORT
+from src.config import LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, SERVER_HOST, SERVER_PORT
 
 logging.basicConfig(
     level=LOG_LEVEL,

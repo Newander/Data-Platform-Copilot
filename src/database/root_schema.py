@@ -1,7 +1,7 @@
 import logging
 
 from src.database.db_connector import ConnectionCM
-from src.settings import settings
+from src.config import settings
 
 
 def create_all(cm_manager: ConnectionCM):

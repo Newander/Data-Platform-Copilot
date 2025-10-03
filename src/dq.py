@@ -5,12 +5,12 @@ from typing import Optional, Any, Dict, List, Tuple
 import duckdb
 import pandas as pd
 
-from src.settings import DATA_DIR, DB_FILE_NAME, DQ_DEFAULT_LIMIT, DQ_MAX_LIMIT, DQ_DEFAULT_SIGMA
+from src.config import DATA_DIR, DB_FILE_NAME, DQ_DEFAULT_LIMIT, DQ_MAX_LIMIT, DQ_DEFAULT_SIGMA
 
 
 # ---- Fetch helpers ----
 def _connect():
-    con = duckdb.connect(DATA_DIR / DB_FILE_NAME)
+    con = duckdb.connect(DATA_DIR / settings.database.file_name)
     con.execute("SET threads TO 2; SET memory_limit='512MB';")
     return con
 

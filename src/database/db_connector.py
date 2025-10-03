@@ -7,7 +7,7 @@ import duckdb
 import psycopg2
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from src.settings import settings
+from src.config import settings
 
 
 class DatabaseConnection:

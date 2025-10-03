@@ -14,9 +14,9 @@ from src.github_client import create_branch, upsert_file, create_pull_request, G
 from src.metrics import METRICS
 from src.orchestrator import run_flow, get_status
 from src.schema_docs import write_schema_docs
-from src.settings import DBT_DIR, GIT_DEFAULT_BRANCH
-from src.settings import DQ_DEFAULT_LIMIT
-from src.settings import ROW_LIMIT
+from src.config import DBT_DIR, GIT_DEFAULT_BRANCH
+from src.config import DQ_DEFAULT_LIMIT
+from src.config import ROW_LIMIT
 from src.sql_runner import extract_sql_from_markdown, sql_run, IncorrectQuestionError, is_safe
 from src.sql_runner import validate_sql
 

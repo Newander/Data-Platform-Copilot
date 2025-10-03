@@ -68,9 +68,9 @@ class DatabaseConfig(BaseModel, ConfigMixin):
 
         # Load from environment if not provided
         if 'file_name' not in kwargs:
-            kwargs['file_name'] = load_env_value('DB_FILE_NAME', 'demo.duckdb')
+            kwargs['file_name'] = load_env_value('settings.database.file_name', 'demo.duckdb')
         if 'dir' not in kwargs:
-            dir_val = load_env_value('DB_DIR')
+            dir_val = load_env_value('settings.database.dir')
             kwargs['dir'] = Path(dir_val) if dir_val else None
 
         # Relational database environment variables
@@ -418,18 +418,7 @@ class Settings(BaseModel):
 # Create global settings instance
 settings = Settings()
 
-# Backward compatibility - expose individual settings as module-level variables
-DATABASE_TYPE = settings.database.database_type
-DB_FILE_NAME = settings.database.file_name
-DB_DIR = settings.database.dir
-DB_HOST = settings.database.host
-DB_PORT = settings.database.port
-DB_DB = settings.database.database
-DB_USER = settings.database.user
-DB_PASSWORD = settings.database.password
-DB_SCHEMA = settings.database.default_schema
 ROW_LIMIT = settings.sql.row_limit
-QUERY_TIMEOUT_MS = settings.sql.query_timeout_ms
 LLM_PROVIDER = settings.llm.provider
 LLM_MODEL = settings.llm.model
 OPENAI_API_KEY = settings.llm.openai_api_key
@@ -450,7 +439,6 @@ GIT_AUTHOR_EMAIL = settings.git.author_email
 DQ_DEFAULT_LIMIT = settings.data_quality.default_limit
 DQ_MAX_LIMIT = settings.data_quality.max_limit
 DQ_DEFAULT_SIGMA = settings.data_quality.default_sigma
-PREFECT_API = settings.orchestration.prefect_api
 
 
 # Utility functions for testing and inspection

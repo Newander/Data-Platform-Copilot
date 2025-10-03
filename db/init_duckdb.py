@@ -3,10 +3,10 @@ import logging
 import duckdb
 import pandas as pd
 
-from src.settings import DATA_DIR, DB_FILE_NAME
+from src.config import DATA_DIR, DB_FILE_NAME
 
 if __name__ == '__main__':
-    db_path = DATA_DIR / DB_FILE_NAME
+    db_path = DATA_DIR / settings.database.file_name
     con = duckdb.connect(str(db_path))
     con.execute("INSTALL httpfs; LOAD httpfs;")
 

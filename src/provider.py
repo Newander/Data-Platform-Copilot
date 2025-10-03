@@ -1,6 +1,6 @@
 import httpx
 
-from src.settings import OPENAI_API_KEY, LLM_MODEL, OPENROUTER_API_KEY, OLLAMA_BASE_URL, LLM_PROVIDER
+from src.config import OPENAI_API_KEY, LLM_MODEL, OPENROUTER_API_KEY, OLLAMA_BASE_URL, LLM_PROVIDER
 
 # General defaults for more deterministic SQL generation
 GEN_PARAMS = {

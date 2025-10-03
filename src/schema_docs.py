@@ -3,7 +3,7 @@ from typing import List, Dict
 
 import duckdb
 
-from src.settings import DATA_DIR, DB_FILE_NAME, DB_DIR
+from src.config import DATA_DIR, DB_FILE_NAME, DB_DIR
 
 EVENTS_DESCR: Dict[str, str] = {
     "event_id": "Unique event identifier (surrogate PK-like)",
@@ -18,7 +18,7 @@ EVENTS_DESCR: Dict[str, str] = {
 
 
 def _con():
-    con = duckdb.connect(DATA_DIR / DB_FILE_NAME)
+    con = duckdb.connect(DATA_DIR / settings.database.file_name)
     con.execute("SET threads TO 2; SET memory_limit='512MB';")
     return con
 
@@ -60,7 +60,7 @@ def build_markdown() -> str:
 
 def write_schema_docs(path: Path | None = None) -> str:
     md = build_markdown()
-    out_path = (path or (DB_DIR / "schema_docs.md"))
+    out_path = (path or (settings.database.dir / "schema_docs.md"))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(md, encoding="utf-8")
     return str(out_path)

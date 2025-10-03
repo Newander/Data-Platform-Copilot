@@ -2,14 +2,14 @@ import functools
 import re
 
 from src.provider import complete
-from src.settings import DB_DIR
+from src.config import DB_DIR, settings
 
 SYSTEM_PROMPT = """
 You convert user questions to a single SAFE SQL SELECT for DuckDB. For Russian and English languages.
 Rules:
 - Output ONLY a SQL code block (```sql ... ```), no prose.
 - SELECT only. FORBIDDEN: INSERT/UPDATE/DELETE/DDL/ATTACH/COPY.
-- Always include explicit column list and LIMIT {row_limit} if not aggregating large sets.
+- Always include explicit column list and LIMIT {settings.sql.row_limit} if not aggregating large sets.
 - Use ISO timestamps; for year filters use BETWEEN y-01-01 AND (y+1)-01-01.
 Schema:
 {schema_docs}
@@ -28,7 +28,7 @@ LIMIT 5;
 
 @functools.lru_cache(maxsize=32)
 def load_schema_docs() -> str:
-    with open(DB_DIR / "schema_docs.md", "r", encoding="utf-8") as f:
+    with open(settings.database.dir / "schema_docs.md", "r", encoding="utf-8") as f:
         return f.read()
 
 

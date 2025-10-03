@@ -2,7 +2,7 @@ import base64
 
 import httpx
 
-from src.settings import (
+from src.config import (
     GITHUB_TOKEN, GITHUB_REPO, GIT_DEFAULT_BRANCH,
     GIT_AUTHOR_NAME, GIT_AUTHOR_EMAIL,
 )
