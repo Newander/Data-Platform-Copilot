@@ -2,10 +2,7 @@ import base64
 
 import httpx
 
-from src.config import (
-    GITHUB_TOKEN, GITHUB_REPO, GIT_DEFAULT_BRANCH,
-    GIT_AUTHOR_NAME, GIT_AUTHOR_EMAIL,
-)
+from src.config import settings
 
 
 class GitHubError(RuntimeError):
@@ -13,18 +10,18 @@ class GitHubError(RuntimeError):
 
 
 def _headers():
-    if not GITHUB_TOKEN:
+    if not settings.git.github_token:
         raise GitHubError("GITHUB_TOKEN is not set")
     return {
-        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Authorization": f"Bearer {settings.git.github_token}",
         "Accept": "application/vnd.github+json",
     }
 
 
 def _api(path: str) -> str:
-    if not GITHUB_REPO:
+    if not settings.git.github_repo:
         raise GitHubError("GITHUB_REPO is not set (expected 'owner/repo')")
-    return f"https://api.github.com/repos/{GITHUB_REPO}{path}"
+    return f"https://api.github.com/repos/{settings.git.github_repo}{path}"
 
 
 async def get_branch_sha(branch: str) -> str:
@@ -37,7 +34,7 @@ async def get_branch_sha(branch: str) -> str:
 
 
 async def create_branch(new_branch: str, from_branch: str | None = None) -> str:
-    base = from_branch or GIT_DEFAULT_BRANCH
+    base = from_branch or settings.git.default_branch
     sha = await get_branch_sha(base)
     payload = {"ref": f"refs/heads/{new_branch}", "sha": sha}
     async with httpx.AsyncClient(timeout=30) as client:
@@ -66,7 +63,7 @@ async def upsert_file(path: str, content: str, branch: str, message: str) -> dic
         "message": message,
         "content": b64,
         "branch": branch,
-        "committer": {"name": GIT_AUTHOR_NAME, "email": GIT_AUTHOR_EMAIL},
+        "committer": {"name": settings.git.author_name, "email": settings.git.author_email},
     }
     if sha:
         payload["sha"] = sha
@@ -78,7 +75,7 @@ async def upsert_file(path: str, content: str, branch: str, message: str) -> dic
 
 
 async def create_pull_request(title: str, head: str, base: str | None = None, body: str | None = None) -> dict:
-    payload = {"title": title, "head": head, "base": base or GIT_DEFAULT_BRANCH}
+    payload = {"title": title, "head": head, "base": base or settings.git.default_branch}
     if body:
         payload["body"] = body
     async with httpx.AsyncClient(timeout=30) as client:

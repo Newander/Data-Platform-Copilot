@@ -1,8 +1,8 @@
 import functools
 import re
 
+from src.config import settings
 from src.provider import complete
-from src.config import DB_DIR, settings
 
 SYSTEM_PROMPT = """
 You convert user questions to a single SAFE SQL SELECT for DuckDB. For Russian and English languages.
@@ -54,12 +54,14 @@ async def refine(question: str, sql_md: str, feedback: str | None) -> str:
     improved_md = await nl_to_sql(question + hint, row_limit=100)
     return improved_md
 
+
 def normalize_question(q: str) -> str:
     q = q.strip()
     q = re.sub(r"\s+", " ", q)
     # simple normalization of numbers/years
     q = q.replace("г.", "year").replace("года", "year")
     return q
+
 
 def _extract_tokens(text: str) -> list[str]:
     return re.findall(r"[A-Za-zА-Яа-я0-9_]+", text.lower())

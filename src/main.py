@@ -5,17 +5,17 @@ from prometheus_client import generate_latest
 from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.responses import Response
 
+from src.config import settings
 from src.lifespan import lifespan_routine
 from src.metrics import METRICS
 from src.route.chat import chat_router
 from src.route.namespace import namespace_router
 from src.schema_docs import build_markdown
-from src.config import LOG_LEVEL, LOG_FORMAT, DATE_FORMAT, SERVER_HOST, SERVER_PORT
 
 logging.basicConfig(
-    level=LOG_LEVEL,
-    format=LOG_FORMAT,
-    datefmt=DATE_FORMAT,
+    level=settings.logging.level,
+    format=settings.logging.format,
+    datefmt=settings.logging.datefmt,
     force=True,  # overrides existing logging configuration (useful for repeated runs)
 )
 app = FastAPI(
@@ -23,7 +23,6 @@ app = FastAPI(
     debug=True,
     lifespan=lifespan_routine
 )
-
 
 
 @app.get("/health")
@@ -50,10 +49,11 @@ def metrics() -> Response:
     payload = METRICS.export_prometheus()
     return Response(content=payload, media_type="text/plain; version=0.0.4; charset=utf-8")
 
+
 app.include_router(namespace_router)
 app.include_router(chat_router)
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host=SERVER_HOST, port=SERVER_PORT, reload=True)
+    uvicorn.run("main:app", host=settings.server.host, port=settings.server.port, reload=True)

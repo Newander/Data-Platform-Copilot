@@ -3,7 +3,7 @@ from typing import List, Dict
 
 import duckdb
 
-from src.config import DATA_DIR, DB_FILE_NAME, DB_DIR
+from src.config import settings
 
 EVENTS_DESCR: Dict[str, str] = {
     "event_id": "Unique event identifier (surrogate PK-like)",
@@ -18,7 +18,7 @@ EVENTS_DESCR: Dict[str, str] = {
 
 
 def _con():
-    con = duckdb.connect(DATA_DIR / settings.database.file_name)
+    con = duckdb.connect(settings.data.data_dir / settings.database.file_name)
     con.execute("SET threads TO 2; SET memory_limit='512MB';")
     return con
 

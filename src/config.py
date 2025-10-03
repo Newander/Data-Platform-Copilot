@@ -68,9 +68,9 @@ class DatabaseConfig(BaseModel, ConfigMixin):
 
         # Load from environment if not provided
         if 'file_name' not in kwargs:
-            kwargs['file_name'] = load_env_value('settings.database.file_name', 'demo.duckdb')
+            kwargs['file_name'] = load_env_value('DB_FILE_NAME', 'demo.duckdb')
         if 'dir' not in kwargs:
-            dir_val = load_env_value('settings.database.dir')
+            dir_val = load_env_value('DB_DIR')
             kwargs['dir'] = Path(dir_val) if dir_val else None
 
         # Relational database environment variables
@@ -333,6 +333,7 @@ class DataConfig(BaseModel, ConfigMixin):
         if 'data_dir' not in kwargs:
             data_dir_val = load_env_value('DATA_DIR')
             kwargs['data_dir'] = Path(data_dir_val) if data_dir_val else None
+
         super().__init__(**kwargs)
 
     @field_validator('data_dir', mode='before')
@@ -417,28 +418,6 @@ class Settings(BaseModel):
 
 # Create global settings instance
 settings = Settings()
-
-ROW_LIMIT = settings.sql.row_limit
-LLM_PROVIDER = settings.llm.provider
-LLM_MODEL = settings.llm.model
-OPENAI_API_KEY = settings.llm.openai_api_key
-OPENROUTER_API_KEY = settings.llm.openrouter_api_key
-OLLAMA_BASE_URL = settings.llm.ollama_base_url
-SERVER_HOST = settings.server.host
-SERVER_PORT = settings.server.port
-DATA_DIR = settings.data.data_dir
-LOG_LEVEL = settings.logging.level
-LOG_FORMAT = settings.logging.format
-DATE_FORMAT = settings.logging.datefmt
-DBT_DIR = settings.git.dbt_dir
-GITHUB_TOKEN = settings.git.github_token
-GITHUB_REPO = settings.git.github_repo
-GIT_DEFAULT_BRANCH = settings.git.default_branch
-GIT_AUTHOR_NAME = settings.git.author_name
-GIT_AUTHOR_EMAIL = settings.git.author_email
-DQ_DEFAULT_LIMIT = settings.data_quality.default_limit
-DQ_MAX_LIMIT = settings.data_quality.max_limit
-DQ_DEFAULT_SIGMA = settings.data_quality.default_sigma
 
 
 # Utility functions for testing and inspection
