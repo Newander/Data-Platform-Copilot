@@ -40,16 +40,51 @@ class ConfigMixin:
 class DatabaseConfig(BaseModel, ConfigMixin):
     """Database-related configuration settings."""
 
-    file_name: str = Field(default="demo.duckdb", description="Database file name")
-    dir: Path | None = Field(default=None, description="Database directory path")
+    # Database type selection
+    database_type: Literal["duckdb", "postgresql"] = Field(
+        default="duckdb",
+        description="Type of database to use (duckdb or postgresql)"
+    )
+
+    # DuckDB (maybe, SQLite?) configuration
+    file_name: str | None = Field(None, description="Database file name for DuckDB")
+    dir: Path | None = Field(None, description="Database directory path for DuckDB")
+
+    # Relational database configuration
+    host: str | None = Field(None, description="Relational database host")
+    port: int | None = Field(None, description="Relational database port")
+    database: str | None = Field(None, description="Relational database name")
+    user: str | None = Field(None, description="Relational database username")
+    password: str | None = Field(None, description="Relational database password")
+    default_schema: str | None = Field(None, description="Relational database default schema")
+    autocommit: bool = Field(True)
 
     def __init__(self, **kwargs):
+        # Common
+        if 'default_schema' not in kwargs:
+            kwargs['default_schema'] = load_env_value('DB_SCHEMA', 'default_schema')
+        if 'database_type' not in kwargs:
+            kwargs['database_type'] = load_env_value('DATABASE_TYPE', 'duckdb').lower()
+
         # Load from environment if not provided
         if 'file_name' not in kwargs:
             kwargs['file_name'] = load_env_value('DB_FILE_NAME', 'demo.duckdb')
         if 'dir' not in kwargs:
             dir_val = load_env_value('DB_DIR')
             kwargs['dir'] = Path(dir_val) if dir_val else None
+
+        # Relational database environment variables
+        if 'host' not in kwargs:
+            kwargs['host'] = load_env_value('DB_HOST', 'localhost')
+        if 'port' not in kwargs:
+            kwargs['port'] = load_env_value('DB_PORT', 5432, int)
+        if 'database' not in kwargs:
+            kwargs['database'] = load_env_value('DB_DB', 'data_pilot')
+        if 'user' not in kwargs:
+            kwargs['user'] = load_env_value('DB_USER', 'postgres')
+        if 'password' not in kwargs:
+            kwargs['password'] = load_env_value('DB_PASSWORD')
+
         super().__init__(**kwargs)
 
     @field_validator('dir', mode='before')
@@ -58,6 +93,44 @@ class DatabaseConfig(BaseModel, ConfigMixin):
         if v is None:
             return None
         return Path(v) if not isinstance(v, Path) else v
+
+    @field_validator('port')
+    @classmethod
+    def validate_port(cls, v):
+        if not (1 <= v <= 65535):
+            raise ValueError("Relational database port must be between 1 and 65535")
+        return v
+
+    @model_validator(mode='after')
+    def validate_database_config(self):
+        """Validate that required fields are set based on database type."""
+        if self.database_type == "postgresql":
+            if not self.password:
+                raise ValueError("Relational database password is required when using postgresql database type")
+        elif self.database_type == "duckdb":
+            if not self.dir:
+                raise ValueError("Database directory is required when using duckdb database type")
+        return self
+
+    def duck_db_dsn(self) -> str:
+        """Build DuckDB (Or SQLite) connection string."""
+        return str(Path(self.dir) / self.file_name)
+
+    def postgresql_dsn(self) -> str:
+        """Build PostgreSQL (or MySQL or Greenplum and so on) connection string."""
+        if not self.password:
+            raise ValueError("PostgreSQL password is required")
+
+        return f"{self.database_type}://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
+
+    def postgresql_parameters(self) -> dict[str, Any]:
+        return {
+            "host": self.host,
+            "port": self.port,
+            "database": self.database,
+            "user": self.user,
+            "password": self.password,
+        }
 
 
 class SQLConfig(BaseModel, ConfigMixin):
@@ -260,6 +333,7 @@ class DataConfig(BaseModel, ConfigMixin):
         if 'data_dir' not in kwargs:
             data_dir_val = load_env_value('DATA_DIR')
             kwargs['data_dir'] = Path(data_dir_val) if data_dir_val else None
+
         super().__init__(**kwargs)
 
     @field_validator('data_dir', mode='before')
@@ -344,33 +418,6 @@ class Settings(BaseModel):
 
 # Create global settings instance
 settings = Settings()
-
-# Backward compatibility - expose individual settings as module-level variables
-DB_FILE_NAME = settings.database.file_name
-ROW_LIMIT = settings.sql.row_limit
-QUERY_TIMEOUT_MS = settings.sql.query_timeout_ms
-LLM_PROVIDER = settings.llm.provider
-LLM_MODEL = settings.llm.model
-OPENAI_API_KEY = settings.llm.openai_api_key
-OPENROUTER_API_KEY = settings.llm.openrouter_api_key
-OLLAMA_BASE_URL = settings.llm.ollama_base_url
-SERVER_HOST = settings.server.host
-SERVER_PORT = settings.server.port
-DB_DIR = settings.database.dir
-DATA_DIR = settings.data.data_dir
-LOG_LEVEL = settings.logging.level
-LOG_FORMAT = settings.logging.format
-DATE_FORMAT = settings.logging.datefmt
-DBT_DIR = settings.git.dbt_dir
-GITHUB_TOKEN = settings.git.github_token
-GITHUB_REPO = settings.git.github_repo
-GIT_DEFAULT_BRANCH = settings.git.default_branch
-GIT_AUTHOR_NAME = settings.git.author_name
-GIT_AUTHOR_EMAIL = settings.git.author_email
-DQ_DEFAULT_LIMIT = settings.data_quality.default_limit
-DQ_MAX_LIMIT = settings.data_quality.max_limit
-DQ_DEFAULT_SIGMA = settings.data_quality.default_sigma
-PREFECT_API = settings.orchestration.prefect_api
 
 
 # Utility functions for testing and inspection

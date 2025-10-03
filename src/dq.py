@@ -5,19 +5,19 @@ from typing import Optional, Any, Dict, List, Tuple
 import duckdb
 import pandas as pd
 
-from src.settings import DATA_DIR, DB_FILE_NAME, DQ_DEFAULT_LIMIT, DQ_MAX_LIMIT, DQ_DEFAULT_SIGMA
+from src.config import settings
 
 
 # ---- Fetch helpers ----
 def _connect():
-    con = duckdb.connect(DATA_DIR / DB_FILE_NAME)
+    con = duckdb.connect(settings.data.data_dir / settings.database.file_name)
     con.execute("SET threads TO 2; SET memory_limit='512MB';")
     return con
 
 
 def fetch_table_sample(table: str, where: Optional[str] = None, limit: Optional[int] = None) -> pd.DataFrame:
-    n = limit or DQ_DEFAULT_LIMIT
-    n = min(max(n, 1), DQ_MAX_LIMIT)
+    n = limit or settings.data_quality.default_limit
+    n = min(max(n, 1), settings.data_quality.max_limit)
     where_sql = f" WHERE {where} " if where and where.strip() else " "
     sql = f"SELECT * FROM {table}{where_sql}LIMIT {n}"
     con = _connect()
@@ -133,7 +133,7 @@ def check_freshness(df: pd.DataFrame, ts_col: str, max_age_hours: int) -> RuleRe
                       })
 
 
-def check_anomaly_zscore(df: pd.DataFrame, col: str, sigma: float = DQ_DEFAULT_SIGMA) -> RuleResult:
+def check_anomaly_zscore(df: pd.DataFrame, col: str, sigma: float = settings.data_quality.default_sigma) -> RuleResult:
     s = pd.to_numeric(df[col], errors="coerce").dropna()
     total = int(df.shape[0])
     if s.empty or s.std(ddof=0) == 0 or math.isnan(s.std(ddof=0)):
@@ -166,7 +166,7 @@ Tuple[Dict[str, Any], List[RuleResult], pd.DataFrame]:
         elif rtype == "freshness":
             results.append(check_freshness(df, r["column"], int(r.get("max_age_hours", 24))))
         elif rtype == "anomaly":
-            results.append(check_anomaly_zscore(df, r["column"], float(r.get("sigma", DQ_DEFAULT_SIGMA))))
+            results.append(check_anomaly_zscore(df, r["column"], float(r.get("sigma", settings.data_quality.default_sigma))))
         else:
             results.append(RuleResult({"type": rtype}, False, {"error": "unknown rule"}))
     return prof, results, df.head(min(50, len(df)))

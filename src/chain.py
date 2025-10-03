@@ -1,15 +1,15 @@
 import functools
 import re
 
+from src.config import settings
 from src.provider import complete
-from src.settings import DB_DIR
 
 SYSTEM_PROMPT = """
 You convert user questions to a single SAFE SQL SELECT for DuckDB. For Russian and English languages.
 Rules:
 - Output ONLY a SQL code block (```sql ... ```), no prose.
 - SELECT only. FORBIDDEN: INSERT/UPDATE/DELETE/DDL/ATTACH/COPY.
-- Always include explicit column list and LIMIT {row_limit} if not aggregating large sets.
+- Always include explicit column list and LIMIT {settings.sql.row_limit} if not aggregating large sets.
 - Use ISO timestamps; for year filters use BETWEEN y-01-01 AND (y+1)-01-01.
 Schema:
 {schema_docs}
@@ -28,7 +28,7 @@ LIMIT 5;
 
 @functools.lru_cache(maxsize=32)
 def load_schema_docs() -> str:
-    with open(DB_DIR / "schema_docs.md", "r", encoding="utf-8") as f:
+    with open(settings.database.dir / "schema_docs.md", "r", encoding="utf-8") as f:
         return f.read()
 
 
@@ -54,12 +54,14 @@ async def refine(question: str, sql_md: str, feedback: str | None) -> str:
     improved_md = await nl_to_sql(question + hint, row_limit=100)
     return improved_md
 
+
 def normalize_question(q: str) -> str:
     q = q.strip()
     q = re.sub(r"\s+", " ", q)
     # simple normalization of numbers/years
     q = q.replace("г.", "year").replace("года", "year")
     return q
+
 
 def _extract_tokens(text: str) -> list[str]:
     return re.findall(r"[A-Za-zА-Яа-я0-9_]+", text.lower())

@@ -1,6 +1,6 @@
 import httpx
 
-from src.settings import OPENAI_API_KEY, LLM_MODEL, OPENROUTER_API_KEY, OLLAMA_BASE_URL, LLM_PROVIDER
+from src.config import settings
 
 # General defaults for more deterministic SQL generation
 GEN_PARAMS = {
@@ -15,16 +15,16 @@ class LLMError(RuntimeError):
 
 
 async def openai_complete(system_prompt: str, user_prompt: str) -> str:
-    if not OPENAI_API_KEY:
+    if not settings.llm.openai_api_key:
         raise LLMError("OPENAI_API_KEY is not set")
 
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Authorization": f"Bearer {settings.llm.openai_api_key}",
         "Content-Type": "application/json",
     }
     payload = {
-        "model": LLM_MODEL,
+        "model": settings.llm.model,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -42,18 +42,18 @@ async def openai_complete(system_prompt: str, user_prompt: str) -> str:
 
 
 async def openrouter_complete(system_prompt: str, user_prompt: str) -> str:
-    if not OPENROUTER_API_KEY:
+    if not settings.llm.openrouter_api_key:
         raise LLMError("OPENROUTER_API_KEY is not set")
 
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Authorization": f"Bearer {settings.llm.openrouter_api_key}",
         "HTTP-Referer": "https://github.com/yourname/data-platform-copilot",
         "X-Title": "Data Platform Copilot",
         "Content-Type": "application/json",
     }
     payload = {
-        "model": LLM_MODEL,  # e.g. "meta-llama/llama-3.1-70b-instruct:free"
+        "model": settings.llm.model,  # e.g. "meta-llama/llama-3.1-70b-instruct:free"
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -71,9 +71,9 @@ async def openrouter_complete(system_prompt: str, user_prompt: str) -> str:
 
 
 async def ollama_complete(system_prompt: str, user_prompt: str) -> str:
-    url = f"{OLLAMA_BASE_URL}/v1/chat/completions"  # Ollama's compatible endpoint >= v0.3
+    url = f"{settings.llm.ollama_base_url}/v1/chat/completions"  # Ollama's compatible endpoint >= v0.3
     payload = {
-        "model": LLM_MODEL,  # e.g. "llama3.1"
+        "model": settings.llm.model,  # e.g. "llama3.1"
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -101,10 +101,10 @@ async def ollama_complete(system_prompt: str, user_prompt: str) -> str:
 
 
 async def complete(system_prompt: str, user_prompt: str) -> str:
-    if LLM_PROVIDER == "openai":
+    if settings.llm.provider == "openai":
         return await openai_complete(system_prompt, user_prompt)
-    if LLM_PROVIDER == "openrouter":
+    if settings.llm.provider == "openrouter":
         return await openrouter_complete(system_prompt, user_prompt)
-    if LLM_PROVIDER == "ollama":
+    if settings.llm.provider == "ollama":
         return await ollama_complete(system_prompt, user_prompt)
-    raise LLMError(f"Unsupported LLM_PROVIDER: {LLM_PROVIDER}")
+    raise LLMError(f"Unsupported LLM_PROVIDER: {settings.llm.provider}")

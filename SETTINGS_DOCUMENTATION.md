@@ -36,12 +36,13 @@ The Data Pilot project now uses a robust, extensible, and testable settings conf
 The settings are organized into logical sections:
 
 ### Database Configuration (`DatabaseConfig`)
+
 ```python
-from src.settings import settings
+from src.config import settings
 
 # Access database settings
 db_file = settings.database.file_name  # "demo.duckdb"
-db_dir = settings.database.dir         # Optional[Path]
+db_dir = settings.database.dir  # Optional[Path]
 ```
 
 **Environment Variables:**
@@ -150,8 +151,9 @@ sigma = settings.data_quality.default_sigma            # 3.0
 ## Usage Patterns
 
 ### Basic Usage
+
 ```python
-from src.settings import settings
+from src.config import settings
 
 # Access configuration values
 database_file = settings.database.file_name
@@ -160,9 +162,10 @@ llm_provider = settings.llm.provider
 ```
 
 ### Backward Compatibility (Legacy Style)
+
 ```python
 # These imports still work for existing code
-from src.settings import DB_FILE_NAME, ROW_LIMIT, LLM_PROVIDER
+from src.config import DB_FILE_NAME, ROW_LIMIT, LLM_PROVIDER
 
 print(f"Database: {DB_FILE_NAME}")
 print(f"Row limit: {ROW_LIMIT}")
@@ -170,8 +173,9 @@ print(f"LLM Provider: {LLM_PROVIDER}")
 ```
 
 ### Configuration Inspection
+
 ```python
-from src.settings import inspect_settings
+from src.config import inspect_settings
 import json
 
 # Get a summary of all settings (with sensitive data masked)
@@ -180,8 +184,9 @@ print(json.dumps(config_summary, indent=2, default=str))
 ```
 
 ### Testing with Configuration Overrides
+
 ```python
-from src.settings import get_settings_for_testing
+from src.config import get_settings_for_testing
 
 # Create test settings with overrides
 test_settings = get_settings_for_testing(
@@ -199,8 +204,9 @@ assert test_settings.server.host == '127.0.0.1'
 ```
 
 ### Runtime Validation
+
 ```python
-from src.settings import settings
+from src.config import settings
 
 # Validate current configuration
 try:
@@ -280,8 +286,9 @@ ValidationError: GitHub repo must be in format 'owner/repo'
 
 ### For New Code
 Use the structured approach:
+
 ```python
-from src.settings import settings
+from src.config import settings
 
 # Recommended: Access through sections
 database_file = settings.database.file_name
@@ -290,21 +297,23 @@ row_limit = settings.sql.row_limit
 
 ### For Existing Code
 No changes required - all existing imports continue to work:
+
 ```python
-from src.settings import DB_FILE_NAME, ROW_LIMIT, LLM_PROVIDER
+from src.config import DB_FILE_NAME, ROW_LIMIT, LLM_PROVIDER
 # This continues to work exactly as before
 ```
 
 ## Best Practices
 
 ### 1. Use Structured Access for New Code
+
 ```python
 # Good: Clear and organized
 settings.database.file_name
 settings.llm.provider
 
 # Avoid: Direct module imports for new code
-from src.settings import DB_FILE_NAME, LLM_PROVIDER
+from src.config import DB_FILE_NAME, LLM_PROVIDER
 ```
 
 ### 2. Validate Configuration at Startup
@@ -348,8 +357,9 @@ def test_with_custom_config():
 ## Advanced Features
 
 ### Configuration Summary
+
 ```python
-from src.settings import settings
+from src.config import settings
 
 # Get configuration summary (sensitive data masked)
 summary = settings.get_config_summary()
@@ -384,8 +394,9 @@ class MyCustomConfig(BaseModel, ConfigMixin):
 4. **Type Conversion Errors**: Check that environment variables contain valid values for their types
 
 ### Debugging Configuration
+
 ```python
-from src.settings import inspect_settings
+from src.config import inspect_settings
 import json
 
 # Print current configuration
