@@ -1,19 +1,10 @@
-fixture-folder/
-plan.md
-.env
-*.duckdb
-.venv
-.idea
+.env_local
 
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
-*.py[codz]
+*.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -27,10 +18,46 @@ parts/
 sdist/
 var/
 wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Virtual environments
+.venv/
+.env/
+env/
+ENV/
+
+# uv
+.uv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+.env
+.env.local
+*.log
+
+fixture-folder/
+plan.md
+*.duckdb
+.venv
+.idea
+
+# Byte-compiled / optimized / DLL files
+*.py[codz]
+
+# Distribution / packaging
+share/python-wheels/
 MANIFEST
 
 # PyInstaller
@@ -63,7 +90,6 @@ cover/
 *.pot
 
 # Django stuff:
-*.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -142,12 +168,8 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .envrc
-.venv
-env/
 venv/
-ENV/
 env.bak/
 venv.bak/
 
