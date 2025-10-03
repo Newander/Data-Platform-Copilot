@@ -11,7 +11,7 @@ from src.config import settings
 from src.dbt_generator import generate_dbt_model, materialize_files_to_disk
 from src.dq import run_checks, render_markdown_report, fetch_table_sample, profile_df
 from src.github_client import create_branch, upsert_file, create_pull_request, GitHubError
-from src.metrics import METRICS
+from src.metrics import PrometheusLocalRegistry
 from src.orchestrator import run_flow, get_status
 from src.schema_docs import write_schema_docs
 from src.sql_runner import extract_sql_from_markdown, sql_run, IncorrectQuestionError, is_safe
@@ -74,7 +74,7 @@ class AgentOut(BaseModel):
 
 @chat_router.post("/chat/agent", response_model=AgentOut)
 async def chat_agent(inp: AgentIn):
-    METRICS.inc("ai_requests_total", {"route": "agent"})
+    PrometheusLocalRegistry.inc("ai_requests_total", {"route": "agent"})
     plan = await make_plan(inp.question)
     candidates: list[CandidateSQL] = []
     chosen_sql = ""
@@ -89,7 +89,7 @@ async def chat_agent(inp: AgentIn):
     draft_md = await nl_to_sql(inp.question, settings.sql.row_limit)
     gen_ms_acc += int((time.perf_counter() - t0) * 1000)
     if not draft_md:
-        METRICS.inc("ai_errors_total", {"stage": "generate"})
+        PrometheusLocalRegistry.inc("ai_errors_total", {"stage": "generate"})
         raise HTTPException(500, "LLM provider not configured")
 
     # Extract SQL and check safety
@@ -146,7 +146,7 @@ async def chat_agent(inp: AgentIn):
         except IncorrectQuestionError as err:
             last_error = str(err)
             candidates.append(CandidateSQL(sql=sql, reason=f"error:{last_error}"))
-            METRICS.inc("ai_errors_total", {"stage": "execute"})
+            PrometheusLocalRegistry.inc("ai_errors_total", {"stage": "execute"})
             retries += 1
             t5 = time.perf_counter()
             draft_md = await refine(inp.question, draft_md, f"execution error: {last_error}")
@@ -169,10 +169,10 @@ async def chat_agent(inp: AgentIn):
             chosen_sql = candidates[-1].sql
 
     telemetry = {"gen_ms": gen_ms_acc, "exec_ms": exec_ms_acc, "retries": retries, "last_error": last_error}
-    METRICS.observe_ms("ai_sql_generation_ms", gen_ms_acc, {})
-    METRICS.observe_ms("ai_sql_exec_ms", exec_ms_acc, {})
+    PrometheusLocalRegistry.observe_ms("ai_sql_generation_ms", gen_ms_acc, {})
+    PrometheusLocalRegistry.observe_ms("ai_sql_exec_ms", exec_ms_acc, {})
     if last_error == "empty":
-        METRICS.inc("ai_sql_empty_results_total", {})
+        PrometheusLocalRegistry.inc("ai_sql_empty_results_total", {})
 
     return AgentOut(
         plan=plan,
@@ -288,7 +288,7 @@ class DQProfileOut(BaseModel):
 
 @chat_router.post("/dq/profile", response_model=DQProfileOut)
 async def dq_profile(inp: DQProfileIn):
-    METRICS.inc("dq_requests_total", {"route": "profile"})
+    PrometheusLocalRegistry.inc("dq_requests_total", {"route": "profile"})
     df = fetch_table_sample(inp.table, where=inp.where, limit=inp.limit or settings.data_quality.default_limit)
     prof = profile_df(df)
     return DQProfileOut(
@@ -322,7 +322,7 @@ class DQCheckOut(BaseModel):
 
 @chat_router.post("/dq/check", response_model=DQCheckOut)
 async def dq_check(inp: DQCheckIn):
-    METRICS.inc("dq_requests_total", {"route": "check"})
+    PrometheusLocalRegistry.inc("dq_requests_total", {"route": "check"})
     prof, results, sample = run_checks(
         table=inp.table,
         where=inp.where,
@@ -332,7 +332,7 @@ async def dq_check(inp: DQCheckIn):
     md = render_markdown_report(inp.table, inp.where, prof, results)
     passed = all(r.passed for r in results)
     # Телеметрия
-    METRICS.inc("dq_checks_total", {"passed": "true" if passed else "false"})
+    PrometheusLocalRegistry.inc("dq_checks_total", {"passed": "true" if passed else "false"})
     return DQCheckOut(
         passed=passed,
         results=[{"rule": r.rule, "passed": r.passed, "details": r.details} for r in results],

@@ -7,7 +7,7 @@ from starlette.responses import Response
 
 from src.config import settings
 from src.lifespan import lifespan_routine
-from src.metrics import METRICS
+from src.metrics import PrometheusLocalRegistry
 from src.route.chat import chat_router
 from src.route.namespace import namespace_router
 from src.schema_docs import build_markdown
@@ -45,8 +45,8 @@ fastapi_metrics = Instrumentator().instrument(app)
 
 @app.get("/metrics")
 def metrics() -> Response:
-    METRICS.set_external_exporter(lambda: generate_latest(fastapi_metrics.registry).decode("utf-8"))
-    payload = METRICS.export_prometheus()
+    PrometheusLocalRegistry.set_external_exporter(lambda: generate_latest(fastapi_metrics.registry).decode("utf-8"))
+    payload = PrometheusLocalRegistry.export_prometheus()
     return Response(content=payload, media_type="text/plain; version=0.0.4; charset=utf-8")
 
 

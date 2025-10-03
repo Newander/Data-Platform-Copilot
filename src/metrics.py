@@ -2,7 +2,7 @@ import threading
 from typing import Optional, Callable
 
 
-class _Registry:
+class LocalRegistry:
     def __init__(self):
         self._counters: dict[tuple[str, tuple[tuple[str, str], ...]], int] = {}
         self._hist_ms: dict[tuple[str, tuple[tuple[str, str], ...]], list] = {}
@@ -57,7 +57,7 @@ class _Registry:
         if self._external_exporter:
             try:
                 external = self._external_exporter() or ""
-            except Exception:
+            except:
                 external = ""
 
         local = self._export_local_prometheus()
@@ -68,4 +68,4 @@ class _Registry:
         return external.rstrip() + "\n" + local
 
 
-METRICS = _Registry()
+PrometheusLocalRegistry = LocalRegistry()
