@@ -28,9 +28,6 @@ class DatabaseConnection:
     def handle_exception(self, exc: Exception | None) -> None:
         raise NotImplementedError
 
-    def test_db_connection(self) -> None:
-        raise NotImplementedError
-
     def commit(self) -> None:
         pass
 
@@ -197,20 +194,20 @@ class ConnectionCM:
     """
     _current_connection: DatabaseConnection
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, db_connection: DatabaseConnection | None = None):
         if not hasattr(cls, '_current_connection'):
-            cls._current_connection = create_connection()
-
-        kwargs['db_connection'] = cls._current_connection
+            cls._current_connection = db_connection or create_connection()
 
         instance = super().__new__(cls)
-        instance.__init__(*args, **kwargs)
+        instance.__init__(db_connection=db_connection or cls._current_connection)
         return instance
 
-    def __init__(self, db_connection: DatabaseConnection):
+    def __init__(self, db_connection: DatabaseConnection | None = None):
         self.db_connection = db_connection
 
-    def __enter__(self):
+    def __enter__(self) -> duckdb.DuckDBPyConnection:
+        if not self.db_connection:
+            raise DatabaseError("Database connection not initialized")
         self.db_connection.create_connection()
         return self.db_connection.connection
 
@@ -226,3 +223,8 @@ class ConnectionCM:
             logging.error(f"Database session error: {exc_val}")
         else:
             self.db_connection.commit()
+
+
+def opened_connection():
+    with ConnectionCM() as connection:
+        return connection

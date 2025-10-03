@@ -3,7 +3,8 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 
-from src.database.db_connector import create_connection
+from src.database.db_connector import create_connection, ConnectionCM
+from src.database.root_schema import create_all
 
 
 @asynccontextmanager
@@ -11,6 +12,7 @@ async def lifespan_routine(app: FastAPI) -> AsyncIterator[None]:
     # put any other startup init here (DB pools, caches, etc.)
     db_connection = create_connection()
     db_connection.test_db_connection()
+    create_all(ConnectionCM(db_connection))
 
     try:
         yield

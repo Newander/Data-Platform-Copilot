@@ -60,9 +60,13 @@ class DatabaseConfig(BaseModel, ConfigMixin):
     autocommit: bool = Field(True)
 
     def __init__(self, **kwargs):
-        # Load from environment if not provided
+        # Common
+        if 'default_schema' not in kwargs:
+            kwargs['default_schema'] = load_env_value('DB_SCHEMA', 'default_schema')
         if 'database_type' not in kwargs:
             kwargs['database_type'] = load_env_value('DATABASE_TYPE', 'duckdb').lower()
+
+        # Load from environment if not provided
         if 'file_name' not in kwargs:
             kwargs['file_name'] = load_env_value('DB_FILE_NAME', 'demo.duckdb')
         if 'dir' not in kwargs:
@@ -70,8 +74,6 @@ class DatabaseConfig(BaseModel, ConfigMixin):
             kwargs['dir'] = Path(dir_val) if dir_val else None
 
         # Relational database environment variables
-        if 'database_type' not in kwargs:
-            kwargs['database_type'] = load_env_value('DB_DRIVER', 'postgresql')
         if 'host' not in kwargs:
             kwargs['host'] = load_env_value('DB_HOST', 'localhost')
         if 'port' not in kwargs:
@@ -82,8 +84,6 @@ class DatabaseConfig(BaseModel, ConfigMixin):
             kwargs['user'] = load_env_value('DB_USER', 'postgres')
         if 'password' not in kwargs:
             kwargs['password'] = load_env_value('DB_PASSWORD')
-        if 'schema' not in kwargs:
-            kwargs['schema'] = load_env_value('DB_SCHEMA', 'public')
 
         super().__init__(**kwargs)
 
