@@ -1,5 +1,13 @@
-###
+### List schemas / namespaces with data sheets
 GET http://localhost:8080/namespace
+
+###
+POST http://localhost:8080/namespace
+Content-Type: application/json
+
+{
+  "name": "A new one"
+}
 
 
 ### Correct question

@@ -112,7 +112,7 @@ class DatabaseConfig(BaseModel, ConfigMixin):
                 raise ValueError("Database directory is required when using duckdb database type")
         return self
 
-    def duck_db_dsn(self) -> str:
+    def duck_db_path(self) -> str:
         """Build DuckDB (Or SQLite) connection string."""
         return str(Path(self.dir) / self.file_name)
 

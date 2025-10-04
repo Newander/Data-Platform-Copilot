@@ -157,7 +157,7 @@ def create_connection() -> DatabaseConnection:
     match settings.database.database_type:
         case 'duckdb':
             db_connection = DuckDBContextManager(
-                dsn=settings.database.duck_db_dsn(),
+                dsn=settings.database.duck_db_path(),
                 read_only=False
             )
         case 'postgresql':
