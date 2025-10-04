@@ -4,13 +4,14 @@ Robust, extensible, and testable settings configuration using Pydantic YamlConfi
 This module provides type-safe configuration management with automatic validation,
 environment variable support, YAML file support, and easy testing capabilities.
 """
+import logging
 import os
 from pathlib import Path
-from typing import Literal, Any, Dict, Self
+from typing import Literal, Any
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
-from pydantic_settings import SettingsConfigDict, YamlConfigSettingsSource, BaseSettings
+from pydantic_settings import SettingsConfigDict
 
 
 class DatabaseConfig(BaseModel):
@@ -21,6 +22,7 @@ class DatabaseConfig(BaseModel):
         default="duckdb",
         description="Type of database to use (duckdb or postgresql)"
     )
+    default_schema: str = Field(description="Required default schema")
 
     # DuckDB (maybe, SQLite?) configuration
     file_name: str | None = Field(None, description="Database file name for DuckDB")
@@ -32,7 +34,6 @@ class DatabaseConfig(BaseModel):
     database: str | None = Field(None, description="Relational database name")
     user: str | None = Field(None, description="Relational database username")
     password: str | None = Field(None, description="Relational database password")
-    default_schema: str | None = Field(None, description="Relational database default schema")
     autocommit: bool = Field(True)
 
     @field_validator('dir', mode='before')
@@ -116,13 +117,15 @@ class LLMConfig(BaseModel):
         # Only validate API keys if they are actually needed for runtime
         # This allows initialization without keys, but they should be provided before use
         if provider == 'openai' and not openai_key:
-            import warnings
-            warnings.warn(
-                "OPENAI_API_KEY is not set but OpenAI provider is selected. Set the API key before making requests.")
+            logging.warning(
+                "OPENAI_API_KEY is not set but OpenAI provider is selected. "
+                "Set the API key before making requests."
+            )
         elif provider == 'openrouter' and not openrouter_key:
-            import warnings
-            warnings.warn(
-                "OPENROUTER_API_KEY is not set but OpenRouter provider is selected. Set the API key before making requests.")
+            logging.warning(
+                "OPENROUTER_API_KEY is not set but OpenRouter provider is selected. "
+                "Set the API key before making requests."
+            )
 
         return self
 
@@ -230,23 +233,6 @@ class OrchestrationConfig(BaseModel):
     prefect_api: str = Field(default="http://localhost:4200/api", description="Prefect API URL")
 
 
-def yaml_config_settings_source(in_settings: YamlConfigSettingsSource) -> Dict[str, Any]:
-    """
-    A simple settings source class that loads variables from a YAML file
-    at the project's root.
-    """
-    encoding = in_settings.__config__.env_file_encoding
-    config_file = Path("config.yaml")
-
-    if not config_file.exists():
-        return {}
-
-    with open(config_file, encoding=encoding) as f:
-        file_vars = yaml.safe_load(f)
-
-    return file_vars or {}
-
-
 class Settings(BaseModel):
     """Main settings class that combines all configuration sections."""
 
@@ -261,26 +247,6 @@ class Settings(BaseModel):
     data_quality: DataQualityConfig = Field(default_factory=DataQualityConfig)
     data: DataConfig = Field(default_factory=DataConfig)
     orchestration: OrchestrationConfig = Field(default_factory=OrchestrationConfig)
-
-    # @classmethod
-    # def settings_customise_sources(
-    #         cls,
-    #         settings_cls: type[BaseSettings],
-    #         init_settings,
-    #         env_settings,
-    #         dotenv_settings,
-    #         file_secret_settings,
-    # ):
-    #     """
-    #     Define the sources and their order for loading settings.
-    #     """
-    #     return (
-    #         init_settings,
-    #         yaml_config_settings_source,
-    #         env_settings,
-    #         dotenv_settings,
-    #         file_secret_settings,
-    #     )
 
     def get_config_summary(self) -> dict[str, dict[str, Any]]:
         """Get a summary of all configuration values (excluding sensitive data)."""
