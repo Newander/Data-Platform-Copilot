@@ -52,7 +52,7 @@ data-platform-copilot/
 ```bash
     git clone https://github.com/Newander/data-platform-copilot.git
     cd data-platform-copilot
-    cp .env.example .env
+    cp .env.yaml.example.yaml .env.yaml
 ````
 
 ### 2. Configure environment

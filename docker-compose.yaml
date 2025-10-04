@@ -51,7 +51,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.api
-    env_file: .env
+    env_file: .env.yaml
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
     ports:

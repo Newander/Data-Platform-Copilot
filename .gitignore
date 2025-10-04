@@ -1,7 +1,7 @@
 fixture-folder/
 plan.md
-.env
-.env_local
+.env.yaml
+.env_local.yaml
 *.duckdb
 .venv
 .idea
@@ -30,7 +30,7 @@ wheels/
 
 # Virtual environments
 .venv/
-.env/
+.env.yaml/
 env/
 ENV/
 
@@ -49,7 +49,7 @@ ENV/
 Thumbs.db
 
 # Project specific
-.env
+.env.yaml
 .env.local
 *.log
 
