@@ -76,6 +76,8 @@ class DuckDBContextManager(DatabaseConnection):
         self.read_only = read_only
         self.connection: Optional[duckdb.DuckDBPyConnection] = None
 
+        logging.info(f"Initializing DuckDB connection: {self.dsn or 'in-memory'}")
+
     def create_connection(self) -> None:
         """
         Enter the context and establish DuckDB connection.
