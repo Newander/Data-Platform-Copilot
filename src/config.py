@@ -1,43 +1,19 @@
 """
-Robust, extensible, and testable settings configuration using Pydantic BaseModel.
+Robust, extensible, and testable settings configuration using Pydantic YamlConfigSettingsSource.
 
 This module provides type-safe configuration management with automatic validation,
-environment variable support, and easy testing capabilities.
+environment variable support, YAML file support, and easy testing capabilities.
 """
-
 import os
 from pathlib import Path
-from typing import Literal, Any, Type
+from typing import Literal, Any, Dict, Self
 
+import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic_settings import SettingsConfigDict, YamlConfigSettingsSource, BaseSettings
 
 
-def load_env_value(env_key: str, default: Any = None, cast_type: Type = str):
-    """Load and cast environment variable value."""
-    value = os.getenv(env_key, default)
-    if value is None:
-        return None
-    if cast_type == bool:
-        return str(value).lower() in ('true', '1', 'yes', 'on')
-    if cast_type == int:
-        return int(value)
-    if cast_type == float:
-        return float(value)
-    if cast_type == Path:
-        return Path(value)
-    return value
-
-
-class ConfigMixin:
-    """Mixin to provide environment variable loading to config classes."""
-
-    @classmethod
-    def from_env[T: BaseModel](cls: Type[T]) -> T:
-        """Create instance from environment variables."""
-        return cls()
-
-
-class DatabaseConfig(BaseModel, ConfigMixin):
+class DatabaseConfig(BaseModel):
     """Database-related configuration settings."""
 
     # Database type selection
@@ -59,34 +35,6 @@ class DatabaseConfig(BaseModel, ConfigMixin):
     default_schema: str | None = Field(None, description="Relational database default schema")
     autocommit: bool = Field(True)
 
-    def __init__(self, **kwargs):
-        # Common
-        if 'default_schema' not in kwargs:
-            kwargs['default_schema'] = load_env_value('DB_SCHEMA', 'default_schema')
-        if 'database_type' not in kwargs:
-            kwargs['database_type'] = load_env_value('DATABASE_TYPE', 'duckdb').lower()
-
-        # Load from environment if not provided
-        if 'file_name' not in kwargs:
-            kwargs['file_name'] = load_env_value('DB_FILE_NAME', 'demo.duckdb')
-        if 'dir' not in kwargs:
-            dir_val = load_env_value('DB_DIR')
-            kwargs['dir'] = Path(dir_val) if dir_val else None
-
-        # Relational database environment variables
-        if 'host' not in kwargs:
-            kwargs['host'] = load_env_value('DB_HOST', 'localhost')
-        if 'port' not in kwargs:
-            kwargs['port'] = load_env_value('DB_PORT', 5432, int)
-        if 'database' not in kwargs:
-            kwargs['database'] = load_env_value('DB_DB', 'data_pilot')
-        if 'user' not in kwargs:
-            kwargs['user'] = load_env_value('DB_USER', 'postgres')
-        if 'password' not in kwargs:
-            kwargs['password'] = load_env_value('DB_PASSWORD')
-
-        super().__init__(**kwargs)
-
     @field_validator('dir', mode='before')
     @classmethod
     def validate_db_dir(cls, v):
@@ -97,7 +45,7 @@ class DatabaseConfig(BaseModel, ConfigMixin):
     @field_validator('port')
     @classmethod
     def validate_port(cls, v):
-        if not (1 <= v <= 65535):
+        if v is not None and not (1 <= v <= 65535):
             raise ValueError("Relational database port must be between 1 and 65535")
         return v
 
@@ -133,18 +81,11 @@ class DatabaseConfig(BaseModel, ConfigMixin):
         }
 
 
-class SQLConfig(BaseModel, ConfigMixin):
+class SQLConfig(BaseModel):
     """SQL execution configuration settings."""
 
     row_limit: int = Field(default=200, description="Default row limit for queries")
     query_timeout_ms: int = Field(default=8000, description="Query timeout in milliseconds")
-
-    def __init__(self, **kwargs):
-        if 'row_limit' not in kwargs:
-            kwargs['row_limit'] = load_env_value('ROW_LIMIT', 200, int)
-        if 'query_timeout_ms' not in kwargs:
-            kwargs['query_timeout_ms'] = load_env_value('QUERY_TIMEOUT_MS', 8000, int)
-        super().__init__(**kwargs)
 
     @field_validator('row_limit', 'query_timeout_ms')
     @classmethod
@@ -154,7 +95,7 @@ class SQLConfig(BaseModel, ConfigMixin):
         return v
 
 
-class LLMConfig(BaseModel, ConfigMixin):
+class LLMConfig(BaseModel):
     """Large Language Model configuration settings."""
 
     provider: Literal["openai", "openrouter", "ollama"] = Field(
@@ -165,19 +106,6 @@ class LLMConfig(BaseModel, ConfigMixin):
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
     openrouter_api_key: str | None = Field(default=None, description="OpenRouter API key")
     ollama_base_url: str = Field(default="http://localhost:11434", description="Ollama base URL")
-
-    def __init__(self, **kwargs):
-        if 'provider' not in kwargs:
-            kwargs['provider'] = load_env_value('LLM_PROVIDER', 'openai').lower()
-        if 'model' not in kwargs:
-            kwargs['model'] = load_env_value('LLM_MODEL', 'gpt-4o-mini')
-        if 'openai_api_key' not in kwargs:
-            kwargs['openai_api_key'] = load_env_value('OPENAI_API_KEY')
-        if 'openrouter_api_key' not in kwargs:
-            kwargs['openrouter_api_key'] = load_env_value('OPENROUTER_API_KEY')
-        if 'ollama_base_url' not in kwargs:
-            kwargs['ollama_base_url'] = load_env_value('OLLAMA_BASE_URL', 'http://localhost:11434')
-        super().__init__(**kwargs)
 
     @model_validator(mode='after')
     def validate_api_keys(self):
@@ -199,18 +127,11 @@ class LLMConfig(BaseModel, ConfigMixin):
         return self
 
 
-class ServerConfig(BaseModel, ConfigMixin):
+class ServerConfig(BaseModel):
     """Server configuration settings."""
 
     host: str = Field(default="0.0.0.0", description="Server host address")
     port: int = Field(default=8000, description="Server port")
-
-    def __init__(self, **kwargs):
-        if 'host' not in kwargs:
-            kwargs['host'] = load_env_value('HOST', '0.0.0.0')
-        if 'port' not in kwargs:
-            kwargs['port'] = load_env_value('PORT', 8000, int)
-        super().__init__(**kwargs)
 
     @field_validator('port')
     @classmethod
@@ -220,7 +141,7 @@ class ServerConfig(BaseModel, ConfigMixin):
         return v
 
 
-class LoggingConfig(BaseModel, ConfigMixin):
+class LoggingConfig(BaseModel):
     """Logging configuration settings."""
 
     level: str = Field(default="INFO", description="Logging level")
@@ -229,15 +150,6 @@ class LoggingConfig(BaseModel, ConfigMixin):
         description="Log message format"
     )
     datefmt: str = Field(default="%Y-%m-%d %H:%M:%S", description="Date format for logs")
-
-    def __init__(self, **kwargs):
-        if 'level' not in kwargs:
-            kwargs['level'] = load_env_value('LOG_LEVEL', 'INFO').upper()
-        if 'format' not in kwargs:
-            kwargs['format'] = load_env_value('LOG_FORMAT', '%(asctime)s | %(levelname)s | %(name)s | %(message)s')
-        if 'datefmt' not in kwargs:
-            kwargs['datefmt'] = load_env_value('LOG_DATEFMT', '%Y-%m-%d %H:%M:%S')
-        super().__init__(**kwargs)
 
     @field_validator('level')
     @classmethod
@@ -248,7 +160,7 @@ class LoggingConfig(BaseModel, ConfigMixin):
         return v.upper()
 
 
-class GitConfig(BaseModel, ConfigMixin):
+class GitConfig(BaseModel):
     """Git and DBT configuration settings."""
 
     dbt_dir: Path = Field(default=Path("dbt"), description="DBT project directory")
@@ -257,22 +169,6 @@ class GitConfig(BaseModel, ConfigMixin):
     default_branch: str = Field(default="main", description="Default Git branch")
     author_name: str = Field(default="Data Platform Copilot", description="Git author name")
     author_email: str = Field(default="bot@example.com", description="Git author email")
-
-    def __init__(self, **kwargs):
-        if 'dbt_dir' not in kwargs:
-            dbt_dir_val = load_env_value('DBT_DIR', 'dbt')
-            kwargs['dbt_dir'] = Path(dbt_dir_val)
-        if 'github_token' not in kwargs:
-            kwargs['github_token'] = load_env_value('GITHUB_TOKEN')
-        if 'github_repo' not in kwargs:
-            kwargs['github_repo'] = load_env_value('GITHUB_REPO')
-        if 'default_branch' not in kwargs:
-            kwargs['default_branch'] = load_env_value('GIT_DEFAULT_BRANCH', 'main')
-        if 'author_name' not in kwargs:
-            kwargs['author_name'] = load_env_value('GIT_AUTHOR_NAME', 'Data Platform Copilot')
-        if 'author_email' not in kwargs:
-            kwargs['author_email'] = load_env_value('GIT_AUTHOR_EMAIL', 'bot@example.com')
-        super().__init__(**kwargs)
 
     @field_validator('dbt_dir', mode='before')
     @classmethod
@@ -287,21 +183,12 @@ class GitConfig(BaseModel, ConfigMixin):
         return v
 
 
-class DataQualityConfig(BaseModel, ConfigMixin):
+class DataQualityConfig(BaseModel):
     """Data Quality configuration settings."""
 
     default_limit: int = Field(default=10000, description="Default row limit for profiling")
     max_limit: int = Field(default=200000, description="Maximum row limit safety guard")
     default_sigma: float = Field(default=3.0, description="Default sigma for z-score")
-
-    def __init__(self, **kwargs):
-        if 'default_limit' not in kwargs:
-            kwargs['default_limit'] = load_env_value('DQ_DEFAULT_LIMIT', 10000, int)
-        if 'max_limit' not in kwargs:
-            kwargs['max_limit'] = load_env_value('DQ_MAX_LIMIT', 200000, int)
-        if 'default_sigma' not in kwargs:
-            kwargs['default_sigma'] = load_env_value('DQ_DEFAULT_SIGMA', 3.0, float)
-        super().__init__(**kwargs)
 
     @field_validator('default_limit', 'max_limit')
     @classmethod
@@ -324,17 +211,10 @@ class DataQualityConfig(BaseModel, ConfigMixin):
         return self
 
 
-class DataConfig(BaseModel, ConfigMixin):
+class DataConfig(BaseModel):
     """Data directory and file configuration settings."""
 
     data_dir: Path | None = Field(default=None, description="Data directory path")
-
-    def __init__(self, **kwargs):
-        if 'data_dir' not in kwargs:
-            data_dir_val = load_env_value('DATA_DIR')
-            kwargs['data_dir'] = Path(data_dir_val) if data_dir_val else None
-
-        super().__init__(**kwargs)
 
     @field_validator('data_dir', mode='before')
     @classmethod
@@ -344,62 +224,73 @@ class DataConfig(BaseModel, ConfigMixin):
         return Path(v) if not isinstance(v, Path) else v
 
 
-class OrchestrationConfig(BaseModel, ConfigMixin):
+class OrchestrationConfig(BaseModel):
     """Orchestration configuration settings."""
 
     prefect_api: str = Field(default="http://localhost:4200/api", description="Prefect API URL")
 
-    def __init__(self, **kwargs):
-        if 'prefect_api' not in kwargs:
-            kwargs['prefect_api'] = load_env_value('PREFECT_API', 'http://localhost:4200/api')
-        super().__init__(**kwargs)
+
+def yaml_config_settings_source(in_settings: YamlConfigSettingsSource) -> Dict[str, Any]:
+    """
+    A simple settings source class that loads variables from a YAML file
+    at the project's root.
+    """
+    encoding = in_settings.__config__.env_file_encoding
+    config_file = Path("config.yaml")
+
+    if not config_file.exists():
+        return {}
+
+    with open(config_file, encoding=encoding) as f:
+        file_vars = yaml.safe_load(f)
+
+    return file_vars or {}
 
 
 class Settings(BaseModel):
     """Main settings class that combines all configuration sections."""
 
-    database: DatabaseConfig
-    sql: SQLConfig
-    llm: LLMConfig
-    server: ServerConfig
-    logging: LoggingConfig
-    git: GitConfig
-    data_quality: DataQualityConfig
-    data: DataConfig
-    orchestration: OrchestrationConfig
+    model_config = SettingsConfigDict()
 
-    def __init__(self, **kwargs):
-        # Initialize all configuration sections from environment
-        config_data = {
-            'database': DatabaseConfig(),
-            'sql': SQLConfig(),
-            'llm': LLMConfig(),
-            'server': ServerConfig(),
-            'logging': LoggingConfig(),
-            'git': GitConfig(),
-            'data_quality': DataQualityConfig(),
-            'data': DataConfig(),
-            'orchestration': OrchestrationConfig(),
-        }
-        config_data.update(kwargs)
-        super().__init__(**config_data)
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    sql: SQLConfig = Field(default_factory=SQLConfig)
+    llm: LLMConfig = Field(default_factory=LLMConfig)
+    server: ServerConfig = Field(default_factory=ServerConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    git: GitConfig = Field(default_factory=GitConfig)
+    data_quality: DataQualityConfig = Field(default_factory=DataQualityConfig)
+    data: DataConfig = Field(default_factory=DataConfig)
+    orchestration: OrchestrationConfig = Field(default_factory=OrchestrationConfig)
+
+    # @classmethod
+    # def settings_customise_sources(
+    #         cls,
+    #         settings_cls: type[BaseSettings],
+    #         init_settings,
+    #         env_settings,
+    #         dotenv_settings,
+    #         file_secret_settings,
+    # ):
+    #     """
+    #     Define the sources and their order for loading settings.
+    #     """
+    #     return (
+    #         init_settings,
+    #         yaml_config_settings_source,
+    #         env_settings,
+    #         dotenv_settings,
+    #         file_secret_settings,
+    #     )
 
     def get_config_summary(self) -> dict[str, dict[str, Any]]:
         """Get a summary of all configuration values (excluding sensitive data)."""
-        sensitive_keys = {'openai_api_key', 'openrouter_api_key', 'github_token'}
+        # summary = {}
+        # for section_name in ['database', 'sql', 'llm', 'server', 'logging', 'git', 'data_quality', 'data',
+        #                      'orchestration']:
+        #     section = getattr(self, section_name)
+        #     summary[section_name] = section.model_dump()
 
-        summary = {}
-        for section_name in ['database', 'sql', 'llm', 'server', 'logging', 'git', 'data_quality', 'data',
-                             'orchestration']:
-            section = getattr(self, section_name)
-            section_dict = section.model_dump()
-            # Mask sensitive values
-            for key in sensitive_keys:
-                if key in section_dict and section_dict[key]:
-                    section_dict[key] = "***masked***"
-            summary[section_name] = section_dict
-
-        return summary
+        return self.model_dump()
 
     def validate_required_settings(self):
         """Validate that all required settings for the current configuration are present."""
@@ -410,39 +301,25 @@ class Settings(BaseModel):
         except Exception as e:
             raise ValueError(f"Configuration validation failed: {str(e)}")
 
-    class Config:
-        """Pydantic configuration."""
-        validate_assignment = True
-        arbitrary_types_allowed = True
+    @classmethod
+    def from_yaml(cls, yaml_file: Path, yaml_file_encoding: str = 'utf-8') -> 'Settings':
+        with yaml_file.open('r', encoding=yaml_file_encoding) as f:
+            config_file = yaml.load(f, yaml.SafeLoader)
+
+        instance = cls.model_validate(config_file)
+        return instance
 
 
-# Create global settings instance
-settings = Settings()
-
-
-# Utility functions for testing and inspection
-def get_settings_for_testing(**overrides) -> Settings:
-    """Create a Settings instance with overrides for testing."""
-    # Set environment variables temporarily
-    original_env = {}
-    for key, value in overrides.items():
-        original_env[key] = os.environ.get(key)
-        os.environ[key] = str(value)
-
-    try:
-        test_settings = Settings()
-        return test_settings
-    finally:
-        # Restore original environment
-        for key, original_value in original_env.items():
-            if original_value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = original_value
+ENV_PATH = os.getenv("ENV_PATH", '.env.yaml')
+# Create a global settings instance
+settings = Settings.from_yaml(
+    yaml_file=Path(ENV_PATH),
+    yaml_file_encoding='utf-8',
+)
 
 
 def inspect_settings() -> dict[str, dict[str, Any]]:
-    """Inspect current settings configuration (useful for debugging and documentation)."""
+    """Inspect the current settings configuration (useful for debugging and documentation)."""
     return settings.get_config_summary()
 
 
@@ -451,7 +328,8 @@ if __name__ == "__main__":
     print("=== Settings Configuration Summary ===")
     import json
 
-    print(json.dumps(inspect_settings(), indent=2, default=str))
+    json_result = inspect_settings()
+    print(json.dumps(json_result, indent=2, default=str))
 
     print("\n=== Validating Configuration ===")
     try:
