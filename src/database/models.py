@@ -17,21 +17,27 @@ class NamespaceFullModel(NamespacePartModel):
 class Namespace(DatabaseObject):
     name = "namespace"
 
-    @property
-    def autoincrement(self) -> str:
-        return f"{self.default_schema}.seq_namespace_id_autoincrement"
-
-    def execute_ddl(self) -> None:
-        for ddl in [
+    def execute_ddl(self, with_drop: bool = False) -> None:
+        ddl_list = []
+        if with_drop:
+            ddl_list.append(f"drop table if exists {self.default_schema}.{self.name}")
+        ddl_list.extend([
             f"""
                 create table if not exists {self.default_schema}.{self.name}
                 (
                     id   INTEGER PRIMARY KEY,
-                    name VARCHAR(1024)
+                    name VARCHAR(1024),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """,
-            f""" CREATE SEQUENCE if not exists {self.autoincrement} START 1 """
-        ]:
+            f""" CREATE SEQUENCE if not exists {self.autoincrement} START 1 """,
+            f""" CREATE OR REPLACE TRIGGER trg_{self.name}_updated_at
+                 BEFORE UPDATE ON {self.default_schema}.{self.name}
+                 FOR EACH ROW
+                 SET NEW.updated_at = CURRENT_TIMESTAMP""",
+        ])
+        for ddl in ddl_list:
             self.connection.execute(ddl)
             logging.info(f"DDL executed: {ddl}")
 
@@ -87,3 +93,43 @@ class Namespace(DatabaseObject):
             """,
             (id_,)
         )
+
+
+class TablePartModel(BaseModel):
+    name: str
+
+
+class TableFullModel(TablePartModel):
+    id: int
+
+
+class Table(DatabaseObject):
+    name: str = "namespace_table"
+
+
+    def execute_ddl(self, with_drop: bool = False) -> None:
+        ddl_list = []
+        if with_drop:
+            ddl_list.append(f"drop table if exists {self.default_schema}.{self.name}")
+        ddl_list.extend([
+            f"""
+                create table if not exists {self.default_schema}.{self.name}
+                (
+                    id   INTEGER PRIMARY KEY,
+                    name VARCHAR(1024),
+                    is_loaded BOOLEAN,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """,
+            f""" CREATE SEQUENCE if not exists {self.autoincrement} START 1 """,
+            f""" CREATE OR REPLACE TRIGGER trg_{self.name}_updated_at
+                 BEFORE UPDATE ON {self.default_schema}.{self.name}
+                 FOR EACH ROW
+                 SET NEW.updated_at = CURRENT_TIMESTAMP""",
+        ])
+        for ddl in ddl_list:
+            self.connection.execute(ddl)
+            logging.info(f"DDL executed: {ddl}")
+
+        self.connection.commit()

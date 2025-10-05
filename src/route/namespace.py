@@ -53,7 +53,7 @@ def edit_namespace(
         namespace_obj: Annotated[Namespace, Depends(depends_object(Namespace))],
         exist_namespace: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
         updated_namespace: NamespacePartModel,
-) -> NamespaceFullModel | Message:
+) -> NamespaceFullModel:
     if exist_namespace == updated_namespace:
         return exist_namespace
 
