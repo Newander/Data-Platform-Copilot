@@ -1,3 +1,17 @@
+###
+DELETE http://localhost:8080/namespace/3
+
+###
+GET http://localhost:8080/namespace/3
+
+###
+PUT http://localhost:8080/namespace/3
+Content-Type: application/json
+
+{
+  "name": "no, new name"
+}
+
 ### List schemas / namespaces with data sheets
 GET http://localhost:8080/namespace
 
@@ -6,7 +20,7 @@ POST http://localhost:8080/namespace
 Content-Type: application/json
 
 {
-  "name": "Special new namespace"
+  "name": "Special new namespace #2"
 }
 
 

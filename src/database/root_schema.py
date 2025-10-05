@@ -1,4 +1,6 @@
+import abc
 import logging
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -19,7 +21,7 @@ def create_all(cm_manager: ConnectionCM) -> None:
                 logging.info(f"{db_instance.name}: default data inserted")
 
 
-class DatabaseObject[PartM: BaseModel, FullM: BaseModel]:
+class DatabaseObject[PartM: BaseModel, FullM: BaseModel](abc.ABC):
     """ Defines interface for required database objects (because SQLAlchemy & alembic support DuckDB badly) """
     default_schema = settings.database.default_schema
 
@@ -30,6 +32,15 @@ class DatabaseObject[PartM: BaseModel, FullM: BaseModel]:
         self.connection = connection
 
     def insert(self, model: PartM) -> FullM:
+        raise NotImplementedError
+
+    def get(self, id_: Any) -> FullM | None:
+        raise NotImplementedError
+
+    def update(self, model: FullM) -> FullM:
+        raise NotImplementedError
+
+    def delete(self, id_: Any) -> None:
         raise NotImplementedError
 
     def all(self) -> list[FullM]:
@@ -87,9 +98,39 @@ class Namespace(DatabaseObject):
     def insert(self, model: NamespacePartModel) -> NamespaceFullModel:
         executed = self.connection.execute(
             f""" insert into {settings.database.default_schema}.namespace (id, name) 
-                values (nextval('{self.autoincrement}'), ?) returning id, name
+                values (nextval('{self.autoincrement}'), ?) 
+                returning id, name
             """,
             (model.name,)
         )
         result = executed.fetchone()
         return NamespaceFullModel(id=result[0], name=result[1])
+
+    def get(self, id_: int) -> NamespaceFullModel | None:
+        executed = self.connection.execute(
+            f""" select id, name from {settings.database.default_schema}.namespace where id = ? """,
+            (id_,)
+        )
+        if result := executed.fetchone():
+            return NamespaceFullModel(id=result[0], name=result[1])
+        return None
+
+    def update(self, model: NamespaceFullModel) -> NamespaceFullModel:
+        executed = self.connection.execute(
+            f""" update {settings.database.default_schema}.namespace
+                set name = ?
+                where id = ?
+                returning id, name
+            """,
+            (model.name, model.id)
+        )
+        result = executed.fetchone()
+        return NamespaceFullModel(id=result[0], name=result[1])
+
+    def delete(self, id_: int) -> None:
+        self.connection.execute(
+            f""" delete from {settings.database.default_schema}.namespace
+                where id = ?
+            """,
+            (id_,)
+        )
