@@ -11,7 +11,7 @@ def create_all(cm_manager: ConnectionCM) -> None:
     with cm_manager as connection:
         for db_cls in DatabaseObject.__subclasses__():
             db_instance = db_cls(connection)
-            db_instance.ddl()
+            db_instance.execute_ddl()
             logging.info(f"{db_instance.name}: DDL executed")
             if default_data := db_instance.default_data():
                 connection.execute(default_data)
@@ -19,7 +19,7 @@ def create_all(cm_manager: ConnectionCM) -> None:
                 logging.info(f"{db_instance.name}: default data inserted")
 
 
-class DatabaseObject:
+class DatabaseObject[PartM: BaseModel, FullM: BaseModel]:
     """ Defines interface for required database objects (because SQLAlchemy & alembic support DuckDB badly) """
     default_schema = settings.database.default_schema
 
@@ -29,27 +29,35 @@ class DatabaseObject:
     def __init__(self, connection: ConnectionType):
         self.connection = connection
 
-    def insert(self, model: BaseModel) -> BaseModel:
+    def insert(self, model: PartM) -> FullM:
         raise NotImplementedError
 
-    def all(self) -> list[BaseModel]:
+    def all(self) -> list[FullM]:
         raise NotImplementedError
 
-    def ddl(self) -> None:
+    def execute_ddl(self) -> None:
         raise NotImplementedError
 
     def default_data(self) -> str | None:
         ...
 
 
+class NamespacePartModel(BaseModel):
+    name: str
+
+
+class NamespaceFullModel(NamespacePartModel):
+    id: int
+
+
 class Namespace(DatabaseObject):
     name = "namespace"
 
     @property
-    def autoincrement(self):
+    def autoincrement(self) -> str:
         return f"{self.default_schema}.seq_namespace_id_autoincrement"
 
-    def ddl(self) -> None:
+    def execute_ddl(self) -> None:
         for ddl in [
             f"""
                 create table if not exists {self.default_schema}.{self.name}
@@ -65,13 +73,7 @@ class Namespace(DatabaseObject):
 
         self.connection.commit()
 
-    class EditModel(BaseModel):
-        name: str
-
-    class IDModel(EditModel):
-        id: int
-
-    def all(self) -> list[IDModel]:
+    def all(self) -> list[NamespaceFullModel]:
         result_query = self.connection.execute(
             f"""
                 select id, name
@@ -80,4 +82,14 @@ class Namespace(DatabaseObject):
             """
         ).fetchall()
 
-        return [Namespace.IDModel(id=id_, name=name) for id_, name in result_query]
+        return [NamespaceFullModel(id=id_, name=name) for id_, name in result_query]
+
+    def insert(self, model: NamespacePartModel) -> NamespaceFullModel:
+        executed = self.connection.execute(
+            f""" insert into {settings.database.default_schema}.namespace (id, name) 
+                values (nextval('{self.autoincrement}'), ?) returning id, name
+            """,
+            (model.name,)
+        )
+        result = executed.fetchone()
+        return NamespaceFullModel(id=result[0], name=result[1])

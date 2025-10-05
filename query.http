@@ -6,7 +6,7 @@ POST http://localhost:8080/namespace
 Content-Type: application/json
 
 {
-  "name": "A new one"
+  "name": "Special new namespace"
 }
 
 
