@@ -32,10 +32,6 @@ class Namespace(DatabaseObject):
                 )
             """,
             f""" CREATE SEQUENCE if not exists {self.autoincrement} START 1 """,
-            f""" CREATE OR REPLACE TRIGGER trg_{self.name}_updated_at
-                 BEFORE UPDATE ON {self.default_schema}.{self.name}
-                 FOR EACH ROW
-                 SET NEW.updated_at = CURRENT_TIMESTAMP""",
         ])
         for ddl in ddl_list:
             self.connection.execute(ddl)
@@ -77,7 +73,7 @@ class Namespace(DatabaseObject):
     def update(self, model: NamespaceFullModel) -> NamespaceFullModel:
         executed = self.connection.execute(
             f""" update {settings.database.default_schema}.namespace
-                set name = ?
+                set name = ?, updated_at = CURRENT_TIMESTAMP
                 where id = ?
                 returning id, name
             """,
@@ -106,7 +102,6 @@ class TableFullModel(TablePartModel):
 class Table(DatabaseObject):
     name: str = "namespace_table"
 
-
     def execute_ddl(self, with_drop: bool = False) -> None:
         ddl_list = []
         if with_drop:
@@ -116,17 +111,15 @@ class Table(DatabaseObject):
                 create table if not exists {self.default_schema}.{self.name}
                 (
                     id   INTEGER PRIMARY KEY,
+                    namespace_id INTEGER NOT NULL,
                     name VARCHAR(1024),
                     is_loaded BOOLEAN,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (namespace_id) REFERENCES {self.default_schema}.{Namespace.name}(id)
                 )
             """,
             f""" CREATE SEQUENCE if not exists {self.autoincrement} START 1 """,
-            f""" CREATE OR REPLACE TRIGGER trg_{self.name}_updated_at
-                 BEFORE UPDATE ON {self.default_schema}.{self.name}
-                 FOR EACH ROW
-                 SET NEW.updated_at = CURRENT_TIMESTAMP""",
         ])
         for ddl in ddl_list:
             self.connection.execute(ddl)

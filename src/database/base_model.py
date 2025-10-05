@@ -9,18 +9,6 @@ from src.config import settings
 from src.database.db_connector import ConnectionCM, ConnectionType, opened_connection
 
 
-def create_all(cm_manager: ConnectionCM, with_drop: bool = False) -> None:
-    """ Creating required tables and objects in the assigned database and default data """
-    with cm_manager as connection:
-        for db_cls in DatabaseObject.__subclasses__():
-            db_instance = db_cls(connection)
-            db_instance.execute_ddl(with_drop)
-            logging.info(f"{db_instance.name}: DDL executed")
-            if default_data := db_instance.default_data():
-                connection.execute(default_data)
-                connection.commit()
-                logging.info(f"{db_instance.name}: default data inserted")
-
 
 class DatabaseObject[PartM: BaseModel, FullM: BaseModel](abc.ABC):
     """ Defines interface for required database objects (because SQLAlchemy & alembic support DuckDB badly) """
