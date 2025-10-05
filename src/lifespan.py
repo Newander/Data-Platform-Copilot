@@ -4,7 +4,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 
 from src.database.db_connector import create_connection, ConnectionCM
-from src.database.root_schema import create_all
+from src.database.base_model import create_all
 
 
 @asynccontextmanager

@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from starlette import status
 
-from src.database.db_dependancies import depends_object
-from src.database.root_schema import Namespace, NamespacePartModel, NamespaceFullModel
+from src.database.base_model import depends_object
+from src.database.models import Namespace, NamespacePartModel, NamespaceFullModel
 
 namespace_router = APIRouter(prefix='/namespace')
 
