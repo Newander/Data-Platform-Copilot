@@ -6,6 +6,9 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+
 from src.chain import nl_to_sql, make_plan, refine
 from src.config import settings
 from src.dbt_generator import generate_dbt_model, materialize_files_to_disk
@@ -72,6 +75,48 @@ class AgentOut(BaseModel):
     telemetry: dict
 
 
+def _lc_generate_sql(question: str, limit: int, feedback: str | None = None) -> str | None:
+    """
+    Generate SQL using LangChain if available. Returns markdown with ```sql code block or None.
+    LangSmith tracing is automatically enabled if LANGCHAIN_TRACING_V2 and LANGCHAIN_API_KEY env vars are set.
+    """
+    system = (
+        "You convert user questions to a single SAFE SQL SELECT for DuckDB. For Russian and English languages.\n"
+        "Rules:\n"
+        "- Output ONLY a SQL code block (```sql ... ```), no prose.\n"
+        "- SELECT only. FORBIDDEN: INSERT/UPDATE/DELETE/DDL/ATTACH/COPY.\n"
+        f"- Always include explicit column list and LIMIT {limit} if not aggregating large sets.\n"
+        "- Use ISO timestamps; for year filters use BETWEEN y-01-01 AND (y+1)-01-01.\n"
+        "Schema:\n{schema_docs}\n\n"
+        "Examples:\n"
+        "Q: top 5 countries by revenue in 2024\n"
+        "SQL:\n"
+        "SELECT c.country, round(SUM(o.total_amount), 2) AS revenue\n"
+        "FROM orders o JOIN customers c USING(customer_id)\n"
+        "WHERE o.order_ts >= '2024-01-01' AND o.order_ts < '2025-01-01'\n"
+        "GROUP BY 1\n"
+        "ORDER BY revenue DESC\n"
+        "LIMIT 5;\n"
+    )
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system),
+        ("human", "Q: {question}\nSQL:{feedback_block}"),
+    ])
+    feedback_block = ""
+    if feedback:
+        feedback_block = f"\n\n-- Constraints: fix issue -> {feedback}. Keep a single safe SELECT for DuckDB with reasonable LIMIT."
+    chain = prompt | ChatOpenAI(model=settings.openai.model, temperature=0.0)
+    res = chain.invoke({
+        "schema_docs": Path(settings.database.dir / "schema_docs.md").read_text(encoding="utf-8"),
+        "question": question,
+        "feedback_block": feedback_block,
+    })
+    try:
+        return res.content if hasattr(res, "content") else str(res)
+    except Exception:
+        return str(res)
+
+
 @chat_router.post("/chat/agent", response_model=AgentOut)
 async def chat_agent(inp: AgentIn):
     PrometheusLocalRegistry.inc("ai_requests_total", {"route": "agent"})
@@ -86,7 +131,7 @@ async def chat_agent(inp: AgentIn):
 
     # First try generation
     t0 = time.perf_counter()
-    draft_md = await nl_to_sql(inp.question, settings.sql.row_limit)
+    draft_md = _lc_generate_sql(inp.question, settings.sql.row_limit) or await nl_to_sql(inp.question, settings.sql.row_limit)
     gen_ms_acc += int((time.perf_counter() - t0) * 1000)
     if not draft_md:
         PrometheusLocalRegistry.inc("ai_errors_total", {"stage": "generate"})
@@ -100,7 +145,9 @@ async def chat_agent(inp: AgentIn):
         # Refine with feedback
         retries += 1
         t1 = time.perf_counter()
-        draft_md = await refine(inp.question, draft_md, f"unsafe: {reason}")
+        # try using LangChain refine with feedback first, fallback to legacy refine
+        draft_md = _lc_generate_sql(inp.question, settings.sql.row_limit, f"unsafe: {reason}") or \
+                   await refine(inp.question, draft_md, f"unsafe: {reason}")
         gen_ms_acc += int((time.perf_counter() - t1) * 1000)
         sql = extract_sql_from_markdown(draft_md)
 
@@ -114,7 +161,8 @@ async def chat_agent(inp: AgentIn):
             candidates.append(CandidateSQL(sql=sql, reason=f"blocked: {reason}"))
             retries += 1
             t2 = time.perf_counter()
-            draft_md = await refine(inp.question, draft_md, f"unsafe: {reason}")
+            draft_md = _lc_generate_sql(inp.question, settings.sql.row_limit, f"unsafe: {reason}") or \
+                      await refine(inp.question, draft_md, f"unsafe: {reason}")
             gen_ms_acc += int((time.perf_counter() - t2) * 1000)
             sql = extract_sql_from_markdown(draft_md)
             continue
@@ -137,7 +185,9 @@ async def chat_agent(inp: AgentIn):
                 last_error = "empty"
                 retries += 1
                 t4 = time.perf_counter()
-                draft_md = await refine(inp.question, draft_md,
+                draft_md = _lc_generate_sql(inp.question, settings.sql.row_limit,
+                                        "empty result, add broader filters or remove overly strict predicates") or \
+                           await refine(inp.question, draft_md,
                                         "empty result, add broader filters or remove overly strict predicates")
                 gen_ms_acc += int((time.perf_counter() - t4) * 1000)
                 sql = extract_sql_from_markdown(draft_md)
@@ -149,7 +199,8 @@ async def chat_agent(inp: AgentIn):
             PrometheusLocalRegistry.inc("ai_errors_total", {"stage": "execute"})
             retries += 1
             t5 = time.perf_counter()
-            draft_md = await refine(inp.question, draft_md, f"execution error: {last_error}")
+            draft_md = _lc_generate_sql(inp.question, settings.sql.row_limit, f"execution error: {last_error}") or \
+                       await refine(inp.question, draft_md, f"execution error: {last_error}")
             gen_ms_acc += int((time.perf_counter() - t5) * 1000)
             sql = extract_sql_from_markdown(draft_md)
 

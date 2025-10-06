@@ -9,6 +9,8 @@ dependencies = [
     "fastapi~=0.116",
     "granian==2.5.3",
     "httpx~=0.28",
+    "langchain>=0.3.27",
+    "langchain-openai>=0.3.34",
     "openai~=1.107",
     "pandas==2.3.2",
     "prometheus-client>=0.23.1",
@@ -23,16 +25,8 @@ dependencies = [
     "uvicorn==0.35.0",
 ]
 
-[project.optional-dependencies]
+[dev-dependencies]
 dev = [
-    "pytest",
-    "black",
-    "ruff",
-    "mypy",
-]
-
-[tool.uv]
-dev-dependencies = [
     "pytest>=7.0.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
