@@ -17,10 +17,14 @@ class NamespaceFullModel(NamespacePartModel):
 class Namespace(DatabaseObject):
     name = "namespace"
 
-    def execute_ddl(self, with_drop: bool = False) -> None:
+    def drop_ddl(self) -> None:
+        self.connection.execute(
+            f""" drop table if exists {self.default_schema}.{self.name} cascade """
+        )
+        self.connection.commit()
+
+    def execute_ddl(self) -> None:
         ddl_list = []
-        if with_drop:
-            ddl_list.append(f"drop table if exists {self.default_schema}.{self.name}")
         ddl_list.extend([
             f"""
                 create table if not exists {self.default_schema}.{self.name}
@@ -102,10 +106,14 @@ class TableFullModel(TablePartModel):
 class Table(DatabaseObject):
     name: str = "namespace_table"
 
-    def execute_ddl(self, with_drop: bool = False) -> None:
+    def drop_ddl(self) -> None:
+        self.connection.execute(
+            f""" drop table if exists {self.default_schema}.{self.name} cascade """
+        )
+        self.connection.commit()
+
+    def execute_ddl(self) -> None:
         ddl_list = []
-        if with_drop:
-            ddl_list.append(f"drop table if exists {self.default_schema}.{self.name}")
         ddl_list.extend([
             f"""
                 create table if not exists {self.default_schema}.{self.name}

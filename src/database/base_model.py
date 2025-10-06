@@ -39,7 +39,10 @@ class DatabaseObject[PartM: BaseModel, FullM: BaseModel](abc.ABC):
     def all(self) -> list[FullM]:
         raise NotImplementedError
 
-    def execute_ddl(self, with_drop: bool = False) -> None:
+    def drop_ddl(self) -> None:
+        raise NotImplementedError
+
+    def execute_ddl(self) -> None:
         raise NotImplementedError
 
     def default_data(self) -> str | None:
