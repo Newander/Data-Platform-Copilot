@@ -2,7 +2,7 @@
 DELETE http://localhost:8080/namespace/3
 
 ###
-GET http://localhost:8080/namespace/3
+GET http://localhost:8080/namespace/1
 
 ###
 PUT http://localhost:8080/namespace/3

@@ -1,56 +1,9 @@
-import abc
 import logging
-from typing import Any
 
 from pydantic import BaseModel
 
 from src.config import settings
-from src.database.db_connector import ConnectionCM, ConnectionType
-
-
-def create_all(cm_manager: ConnectionCM) -> None:
-    """ Creating required tables and objects in the assigned database and default data """
-    with cm_manager as connection:
-        for db_cls in DatabaseObject.__subclasses__():
-            db_instance = db_cls(connection)
-            db_instance.execute_ddl()
-            logging.info(f"{db_instance.name}: DDL executed")
-            if default_data := db_instance.default_data():
-                connection.execute(default_data)
-                connection.commit()
-                logging.info(f"{db_instance.name}: default data inserted")
-
-
-class DatabaseObject[PartM: BaseModel, FullM: BaseModel](abc.ABC):
-    """ Defines interface for required database objects (because SQLAlchemy & alembic support DuckDB badly) """
-    default_schema = settings.database.default_schema
-
-    name: str
-    autoincrement: str
-
-    def __init__(self, connection: ConnectionType):
-        self.connection = connection
-
-    def insert(self, model: PartM) -> FullM:
-        raise NotImplementedError
-
-    def get(self, id_: Any) -> FullM | None:
-        raise NotImplementedError
-
-    def update(self, model: FullM) -> FullM:
-        raise NotImplementedError
-
-    def delete(self, id_: Any) -> None:
-        raise NotImplementedError
-
-    def all(self) -> list[FullM]:
-        raise NotImplementedError
-
-    def execute_ddl(self) -> None:
-        raise NotImplementedError
-
-    def default_data(self) -> str | None:
-        ...
+from src.database.base_model import DatabaseObject
 
 
 class NamespacePartModel(BaseModel):
@@ -64,21 +17,23 @@ class NamespaceFullModel(NamespacePartModel):
 class Namespace(DatabaseObject):
     name = "namespace"
 
-    @property
-    def autoincrement(self) -> str:
-        return f"{self.default_schema}.seq_namespace_id_autoincrement"
-
-    def execute_ddl(self) -> None:
-        for ddl in [
+    def execute_ddl(self, with_drop: bool = False) -> None:
+        ddl_list = []
+        if with_drop:
+            ddl_list.append(f"drop table if exists {self.default_schema}.{self.name}")
+        ddl_list.extend([
             f"""
                 create table if not exists {self.default_schema}.{self.name}
                 (
                     id   INTEGER PRIMARY KEY,
-                    name VARCHAR(1024)
+                    name VARCHAR(1024),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """,
-            f""" CREATE SEQUENCE if not exists {self.autoincrement} START 1 """
-        ]:
+            f""" CREATE SEQUENCE if not exists {self.autoincrement} START 1 """,
+        ])
+        for ddl in ddl_list:
             self.connection.execute(ddl)
             logging.info(f"DDL executed: {ddl}")
 
@@ -118,7 +73,7 @@ class Namespace(DatabaseObject):
     def update(self, model: NamespaceFullModel) -> NamespaceFullModel:
         executed = self.connection.execute(
             f""" update {settings.database.default_schema}.namespace
-                set name = ?
+                set name = ?, updated_at = CURRENT_TIMESTAMP
                 where id = ?
                 returning id, name
             """,
@@ -134,3 +89,40 @@ class Namespace(DatabaseObject):
             """,
             (id_,)
         )
+
+
+class TablePartModel(BaseModel):
+    name: str
+
+
+class TableFullModel(TablePartModel):
+    id: int
+
+
+class Table(DatabaseObject):
+    name: str = "namespace_table"
+
+    def execute_ddl(self, with_drop: bool = False) -> None:
+        ddl_list = []
+        if with_drop:
+            ddl_list.append(f"drop table if exists {self.default_schema}.{self.name}")
+        ddl_list.extend([
+            f"""
+                create table if not exists {self.default_schema}.{self.name}
+                (
+                    id   INTEGER PRIMARY KEY,
+                    namespace_id INTEGER NOT NULL,
+                    name VARCHAR(1024),
+                    is_loaded BOOLEAN,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (namespace_id) REFERENCES {self.default_schema}.{Namespace.name}(id)
+                )
+            """,
+            f""" CREATE SEQUENCE if not exists {self.autoincrement} START 1 """,
+        ])
+        for ddl in ddl_list:
+            self.connection.execute(ddl)
+            logging.info(f"DDL executed: {ddl}")
+
+        self.connection.commit()
