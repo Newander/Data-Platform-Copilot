@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from pydantic import BaseModel
 
@@ -12,6 +13,8 @@ class NamespacePartModel(BaseModel):
 
 class NamespaceFullModel(NamespacePartModel):
     id: int
+    created_at: datetime
+    updated_at: datetime | None
 
 
 class Namespace(DatabaseObject):
@@ -97,6 +100,7 @@ class Namespace(DatabaseObject):
 
 class TablePartModel(BaseModel):
     name: str
+    file_name: str
 
 
 class TableFullModel(TablePartModel):
