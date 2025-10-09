@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -89,7 +90,14 @@ class Namespace(DatabaseObject):
         result = executed.fetchone()
         return NamespaceFullModel(id=result[0], name=result[1])
 
-    def delete(self, id_: int) -> None:
+    def delete(self, id_: int, is_cascade: bool = False) -> None:
+        if is_cascade:
+            self.connection.execute(
+                f""" delete from {settings.database.default_schema}.namespace_table
+                    where namespace_id = ?
+                """,
+                (id_,)
+            )
         self.connection.execute(
             f""" delete from {settings.database.default_schema}.namespace
                 where id = ?
@@ -100,11 +108,15 @@ class Namespace(DatabaseObject):
 
 class TablePartModel(BaseModel):
     name: str
-    file_name: str
 
 
 class TableFullModel(TablePartModel):
     id: int
+    namespace_id: int
+    file_name: str | None
+    is_loaded: bool | None
+    created_at: datetime
+    updated_at: datetime | None
 
 
 class Table(DatabaseObject):
@@ -125,16 +137,40 @@ class Table(DatabaseObject):
                     id   INTEGER PRIMARY KEY,
                     namespace_id INTEGER NOT NULL,
                     name VARCHAR(1024),
+                    file_name VARCHAR(1024),
                     is_loaded BOOLEAN,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (namespace_id) REFERENCES {self.default_schema}.{Namespace.name}(id)
+                    FOREIGN KEY (namespace_id) 
+                        REFERENCES {self.default_schema}.{Namespace.name}(id)
                 )
             """,
             f""" CREATE SEQUENCE if not exists {self.autoincrement} START 1 """,
         ])
         for ddl in ddl_list:
+            logging.info(f"DDL executing: {ddl}")
             self.connection.execute(ddl)
-            logging.info(f"DDL executed: {ddl}")
 
         self.connection.commit()
+
+    def get(self, id_: Any) -> TableFullModel | None:
+        executed = self.connection.execute(
+            f""" 
+            select id, namespace_id, name, file_name, is_loaded, created_at, updated_at 
+            from {settings.database.default_schema}.{self.name} 
+            where id = ? """,
+            (id_,)
+        )
+        if result := executed.fetchone():
+            id_, namespace_id, name, file_name, is_loaded, created_at, updated_at = result
+            return TableFullModel(
+                id=id_,
+                namespace_id=namespace_id,
+                name=name,
+                file_name=file_name,
+                is_loaded=is_loaded,
+                created_at=created_at,
+                updated_at=updated_at
+            )
+
+        return None

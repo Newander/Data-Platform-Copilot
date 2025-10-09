@@ -33,7 +33,7 @@ class DatabaseObject[PartM: BaseModel, FullM: BaseModel](abc.ABC):
     def update(self, model: FullM) -> FullM:
         raise NotImplementedError
 
-    def delete(self, id_: Any) -> None:
+    def delete(self, id_: Any, is_cascade: bool = False) -> None:
         raise NotImplementedError
 
     def all(self) -> list[FullM]:

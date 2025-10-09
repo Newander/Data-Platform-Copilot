@@ -1,17 +1,16 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from pydantic import BaseModel, Field
 from starlette import status
 
 from src.database.base_model import depends_object
-from src.database.models import Table, NamespacePartModel, NamespaceFullModel, TableFullModel
+from src.database.models import Table, NamespacePartModel, NamespaceFullModel, TableFullModel, TablePartModel
 from src.route.inspect_schema import Message
 
 table_router = APIRouter(prefix='/{namespace_id}/table')
 
 
-# Dependency to check namespace existence
 async def get_namespace_depends(
         namespace_id: int,
         namespace_obj: Annotated[Table, Depends(depends_object(Table))]
@@ -27,14 +26,26 @@ async def get_namespace_depends(
     return namespace
 
 
+
+async def get_table_depends(
+        table_id: int,
+        namespace_id: int,
+        table_obj: Annotated[Table, Depends(depends_object(Table))],
+) -> TableFullModel:
+    """Checks namespace existence and returns it, or raises 404"""
+    table = table_obj.get(table_id)
+    if not table or table.namespace_id != namespace_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Table with ID:{table_id} not found"
+        )
+
+    return table
+
+
 class TableListResponse(BaseModel):
     message: str
     tables: list[TableFullModel]
-
-
-class TableResponse(BaseModel):
-    message: str
-    namespace: TableFullModel | None
 
 
 @table_router.get('/')
@@ -48,13 +59,31 @@ def list_tables(
     )
 
 
+class UploadTableSourceModel(TablePartModel):
+    file: UploadFile = Field(..., description="Uploading file")
+
+
+
+class TableCreateModel(BaseModel):
+    name: str
+
 @table_router.post('/')
 def create_table(
         table_obj: Annotated[Table, Depends(depends_object(Table))],
-        new_table: NamespacePartModel,
+        new_table: TableCreateModel,
 ) -> NamespaceFullModel:
     full_new_table = table_obj.insert(new_table)
     return full_new_table
+
+
+
+@table_router.post('/{table_id}/upload')
+def upload_table_file(
+        table: Annotated[Table, Depends(get_table_depends)],
+        new_table: UploadTableSourceModel,
+) -> NamespaceFullModel:
+    # todo: realise
+    return new_table
 
 
 @table_router.get('/{table_id}')

@@ -42,6 +42,7 @@ class DatabaseConnection:
         try:
             # Simple test query
             result = self.connection.execute("SELECT 1 as test").fetchone()
+            logging.info("Database is connected")
         except Exception as e:
             logging.error(f"Database connection test failed: {e}")
             raise

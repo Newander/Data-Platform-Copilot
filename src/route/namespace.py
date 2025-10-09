@@ -67,7 +67,6 @@ def delete_namespace(
         namespace_obj: Annotated[Namespace, Depends(depends_object(Namespace))],
         namespace: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
 ) -> Message:
-    # todo: remove also tables
     namespace_obj.delete(namespace.id)
     return Message(message=f'The namespace:ID:{namespace.id} is removed')
 
