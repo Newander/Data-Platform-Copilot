@@ -8,14 +8,18 @@ from src.config import settings
 from src.database.base_model import DatabaseObject
 
 
-class NamespacePartModel(BaseModel):
+class NamespaceNameModel(BaseModel):
     name: str
 
+class NamespaceCreateModel(BaseModel):
+    name: str
+    schema_name: str
 
 class NamespaceFullModel(BaseModel):
     """ Order is important! """
     id: int
     name: str
+    schema_name: str
     created_at: datetime
     updated_at: datetime | None
 
@@ -38,6 +42,7 @@ class Namespace(DatabaseObject):
                 (
                     id   INTEGER PRIMARY KEY,
                     name VARCHAR(1024),
+                    schema_name VARCHAR(1024),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )

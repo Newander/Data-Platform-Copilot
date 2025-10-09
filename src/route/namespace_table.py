@@ -8,7 +8,7 @@ from starlette import status
 
 from src.database.base_model import depends_object
 from src.database.db_connector import ConnectionType, opened_connection
-from src.database.models import Table, NamespacePartModel, NamespaceFullModel, TableFullModel, TablePartModel, Namespace
+from src.database.models import Table, NamespaceNameModel, NamespaceFullModel, TableFullModel, TablePartModel, Namespace
 from src.route.inspect_schema import Message
 
 table_router = APIRouter(prefix='/{namespace_id}/table')
@@ -116,7 +116,7 @@ def get_table(
 def edit_table(
         table_obj: Annotated[Table, Depends(depends_object(Table))],
         exist_table: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
-        updated_table: NamespacePartModel,
+        updated_table: NamespaceNameModel,
 ) -> NamespaceFullModel:
     if exist_table == updated_table:
         return exist_table

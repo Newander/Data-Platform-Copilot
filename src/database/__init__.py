@@ -6,7 +6,7 @@ from duckdb.duckdb import CatalogException
 
 from .base_model import DatabaseObject
 from .db_connector import ConnectionCM
-from .models import Namespace, NamespacePartModel, NamespacePartModel
+from .models import Namespace, NamespaceNameModel, NamespaceNameModel
 
 
 def create_all(cm_manager: ConnectionCM, with_drop: bool = False) -> None:
@@ -35,5 +35,5 @@ __all__ = [
     "create_all",
     "ConnectionCM",
     "DatabaseObject",
-    "Namespace", "NamespacePartModel", "NamespacePartModel"
+    "Namespace", "NamespaceNameModel", "NamespaceNameModel"
 ]

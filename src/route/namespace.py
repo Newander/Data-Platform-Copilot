@@ -5,9 +5,10 @@ from pydantic import BaseModel
 
 from src.database.base_model import depends_object
 from src.database.db_connector import ConnectionType, opened_connection
-from src.database.models import Namespace, NamespacePartModel, NamespaceFullModel
+from src.database.models import Namespace, NamespaceNameModel, NamespaceFullModel, NamespaceCreateModel
 from src.route.inspect_schema import Message
 from src.route.namespace_table import table_router, get_namespace_depends
+from src.utils import normalize_schema_name
 
 namespace_router = APIRouter(prefix='/namespace')
 
@@ -37,10 +38,16 @@ def list_namespaces(
 def create_namespace(
         connection: Annotated[ConnectionType, Depends(opened_connection)],
         namespace_obj: Annotated[Namespace, Depends(depends_object(Namespace))],
-        new_namespace: NamespacePartModel,
+        new_namespace: NamespaceNameModel,
 ) -> NamespaceFullModel:
-    connection.execute(f" CREATE SCHEMA IF NOT EXISTS {new_namespace.name} ")
-    full_new_namespace = namespace_obj.insert(new_namespace)
+    schema_name = normalize_schema_name(new_namespace.name)
+    connection.execute(f" CREATE SCHEMA IF NOT EXISTS {schema_name} ")
+    full_new_namespace = namespace_obj.insert(
+        NamespaceCreateModel.model_validate({
+            'schema_name': schema_name,
+            **new_namespace.model_dump(),
+        })
+    )
     return full_new_namespace
 
 
@@ -55,7 +62,7 @@ def get_namespace(
 def edit_namespace(
         namespace_obj: Annotated[Namespace, Depends(depends_object(Namespace))],
         exist_namespace: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
-        updated_namespace: NamespacePartModel,
+        updated_namespace: NamespaceNameModel,
 ) -> NamespaceFullModel:
     if exist_namespace == updated_namespace:
         return exist_namespace
