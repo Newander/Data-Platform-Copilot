@@ -12,14 +12,17 @@ class NamespacePartModel(BaseModel):
     name: str
 
 
-class NamespaceFullModel(NamespacePartModel):
+class NamespaceFullModel(BaseModel):
+    """ Order is important! """
     id: int
+    name: str
     created_at: datetime
     updated_at: datetime | None
 
 
 class Namespace(DatabaseObject):
     name = "namespace"
+    model = NamespaceFullModel
 
     def drop_ddl(self) -> None:
         self.connection.execute(
@@ -50,32 +53,29 @@ class Namespace(DatabaseObject):
     def all(self) -> list[NamespaceFullModel]:
         result_query = self.connection.execute(
             f"""
-                select id, name
+                select {','.join(self.fields())}
                 from {settings.database.default_schema}.namespace
                 order by id
             """
         ).fetchall()
 
-        return [NamespaceFullModel(id=id_, name=name) for id_, name in result_query]
-
-    def insert(self, model: NamespacePartModel) -> NamespaceFullModel:
-        executed = self.connection.execute(
-            f""" insert into {settings.database.default_schema}.namespace (id, name) 
-                values (nextval('{self.autoincrement}'), ?) 
-                returning id, name
-            """,
-            (model.name,)
-        )
-        result = executed.fetchone()
-        return NamespaceFullModel(id=result[0], name=result[1])
+        return [
+            self.create_model_from_tuple(fields)
+            for fields in result_query
+        ]
 
     def get(self, id_: int) -> NamespaceFullModel | None:
         executed = self.connection.execute(
-            f""" select id, name from {settings.database.default_schema}.namespace where id = ? """,
+            f""" 
+                select {','.join(self.fields())} 
+                from {settings.database.default_schema}.namespace 
+                where id = ? 
+            """,
             (id_,)
         )
         if result := executed.fetchone():
-            return NamespaceFullModel(id=result[0], name=result[1])
+            return self.create_model_from_tuple(result)
+
         return None
 
     def update(self, model: NamespaceFullModel) -> NamespaceFullModel:
@@ -121,6 +121,7 @@ class TableFullModel(TablePartModel):
 
 class Table(DatabaseObject):
     name: str = "namespace_table"
+    model = TableFullModel
 
     def drop_ddl(self) -> None:
         self.connection.execute(

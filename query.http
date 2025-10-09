@@ -1,3 +1,6 @@
+### List schemas / namespaces with data sheets
+GET http://localhost:8080/namespace
+
 ###
 DELETE http://localhost:8080/namespace/3
 
@@ -12,16 +15,23 @@ Content-Type: application/json
   "name": "no, new name"
 }
 
-### List schemas / namespaces with data sheets
-GET http://localhost:8080/namespace
-
 ###
 POST http://localhost:8080/namespace
 Content-Type: application/json
 
 {
-  "name": "Original"
+  "name": "Demo Seed"
 }
+
+### Create table part 1
+POST http://localhost:8080/namespace/2/table
+Content-Type: application/json
+
+{
+  "name": "customers"
+}
+
+### Create table part 2
 
 
 ### Correct question

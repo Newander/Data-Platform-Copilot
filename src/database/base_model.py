@@ -10,12 +10,13 @@ from src.database.db_connector import ConnectionCM, ConnectionType, opened_conne
 
 
 
-class DatabaseObject[PartM: BaseModel, FullM: BaseModel](abc.ABC):
+class DatabaseObject[CreateM: BaseModel, FullM: BaseModel](abc.ABC):
     """ Defines interface for required database objects (because SQLAlchemy & alembic support DuckDB badly) """
     default_schema = settings.database.default_schema
 
     name: str
     autoincrement: str
+    model: type[FullM]
 
     @property
     def autoincrement(self) -> str:
@@ -24,8 +25,22 @@ class DatabaseObject[PartM: BaseModel, FullM: BaseModel](abc.ABC):
     def __init__(self, connection: ConnectionType):
         self.connection = connection
 
-    def insert(self, model: PartM) -> FullM:
-        raise NotImplementedError
+
+    def insert(self, model: CreateM) -> FullM:
+        short_fields = {
+            field: field_value
+            for field in self.fields()
+            if (field_value := getattr(model, field, None))
+        }
+        sql = f""" 
+            insert into {settings.database.default_schema}.{self.name} (id, {','.join(short_fields)}) 
+            values (nextval('{self.autoincrement}'), {','.join(['?'] * len(short_fields))}) 
+            returning {','.join(self.fields())}
+        """
+        logging.info(f"SQL: {sql}")
+        cursor = self.connection.execute(sql, tuple(short_fields.values()))
+        result = cursor.fetchone()
+        return self.create_model_from_tuple(result)
 
     def get(self, id_: Any) -> FullM | None:
         raise NotImplementedError
@@ -47,6 +62,17 @@ class DatabaseObject[PartM: BaseModel, FullM: BaseModel](abc.ABC):
 
     def default_data(self) -> str | None:
         ...
+
+    def fields(self) -> tuple[str, ...]:
+        return tuple(self.model.model_fields.keys())
+
+    def create_model_from_tuple(self, row: tuple) -> FullM:
+            return self.model.model_validate(
+                {
+                    field_name: row[i]
+                    for i, field_name in enumerate(self.fields())
+                }
+            )
 
 
 def depends_object[T: DatabaseObject](model: type[T]) -> Callable[[ConnectionType], T]:
