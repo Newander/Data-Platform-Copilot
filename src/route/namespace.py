@@ -1,17 +1,16 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from starlette import status
 
-from src.database.db_dependancies import depends_object
-from src.database.root_schema import Namespace, NamespacePartModel, NamespaceFullModel
+from src.database.base_model import depends_object
+from src.database.db_connector import ConnectionType, opened_connection
+from src.database.models import Namespace, NamespaceNameModel, NamespaceFullModel, NamespaceCreateModel
+from src.route.inspect_schema import Message
+from src.route.namespace_table import table_router, get_namespace_depends
+from src.utils import normalize_schema_name
 
 namespace_router = APIRouter(prefix='/namespace')
-
-
-class Message(BaseModel):
-    message: str
 
 
 class NamespaceListResponse(BaseModel):
@@ -37,45 +36,51 @@ def list_namespaces(
 
 @namespace_router.post('/')
 def create_namespace(
+        connection: Annotated[ConnectionType, Depends(opened_connection)],
         namespace_obj: Annotated[Namespace, Depends(depends_object(Namespace))],
-        new_namespace: NamespacePartModel,
+        new_namespace: NamespaceNameModel,
 ) -> NamespaceFullModel:
-    full_new_namespace = namespace_obj.insert(new_namespace)
+    schema_name = normalize_schema_name(new_namespace.name)
+    connection.execute(f" CREATE SCHEMA IF NOT EXISTS {schema_name} ")
+    full_new_namespace = namespace_obj.insert(
+        NamespaceCreateModel.model_validate({
+            'schema_name': schema_name,
+            **new_namespace.model_dump(),
+        })
+    )
     return full_new_namespace
 
 
 @namespace_router.get('/{namespace_id}')
 def get_namespace(
-        namespace_obj: Annotated[Namespace, Depends(depends_object(Namespace))],
-        namespace_id: int,
+        namespace: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
 ) -> NamespaceFullModel:
-    if namespace := namespace_obj.get(namespace_id):
-        return namespace
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Namespace with ID:{namespace_id} not found")
+    return namespace
 
 
 @namespace_router.put('/{namespace_id}')
 def edit_namespace(
         namespace_obj: Annotated[Namespace, Depends(depends_object(Namespace))],
-        namespace_id: int,
-        updated_namespace: NamespacePartModel,
-) -> NamespaceFullModel | Message:
-    if not (namespace := namespace_obj.get(namespace_id)):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Namespace with ID:{namespace_id} not found")
-
-    if namespace == updated_namespace:
-        return namespace
+        exist_namespace: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
+        updated_namespace: NamespaceNameModel,
+) -> NamespaceFullModel:
+    if exist_namespace == updated_namespace:
+        return exist_namespace
 
     return namespace_obj.update(
-        NamespaceFullModel(id=namespace_id, **updated_namespace.model_dump())
+        NamespaceFullModel(id=exist_namespace.id, **updated_namespace.model_dump())
     )
 
 
 @namespace_router.delete('/{namespace_id}')
 def delete_namespace(
+        connection: Annotated[ConnectionType, Depends(opened_connection)],
         namespace_obj: Annotated[Namespace, Depends(depends_object(Namespace))],
-        namespace_id: int,
+        namespace: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
 ) -> Message:
-    # todo: remove also tables
-    namespace_obj.delete(namespace_id)
-    return Message(message=f'The namespace:ID:{namespace_id} is removed')
+    connection.execute(f" DROP SCHEMA IF EXISTS {namespace.name} CASCADE ")
+    namespace_obj.delete(namespace.id, is_cascade=False)
+    return Message(message=f'The namespace:ID:{namespace.id} is removed')
+
+
+namespace_router.include_router(table_router)

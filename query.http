@@ -1,8 +1,11 @@
-###
-DELETE http://localhost:8080/namespace/3
+### Remove namespace
+DELETE http://localhost:8080/namespace/5
 
 ###
-GET http://localhost:8080/namespace/3
+GET http://localhost:8080/namespace/1
+
+### List schemas / namespaces with data sheets
+GET http://localhost:8080/namespace
 
 ###
 PUT http://localhost:8080/namespace/3
@@ -12,16 +15,35 @@ Content-Type: application/json
   "name": "no, new name"
 }
 
-### List schemas / namespaces with data sheets
-GET http://localhost:8080/namespace
-
+### Get tables
+GET http://localhost:8080/namespace/7/table
 ###
 POST http://localhost:8080/namespace
 Content-Type: application/json
 
 {
-  "name": "Special new namespace #2"
+  "name": "Demo Seed"
 }
+
+
+### Create table part 1
+POST http://localhost:8080/namespace/7/table
+Content-Type: application/json
+
+{
+  "name": "items"
+}
+
+### Create table part 2
+POST http://localhost:8080/namespace/7/table/4/upload
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="items.csv"
+Content-Type: text/csv
+
+< /home/newander/PycharmProjects/Data-Platform-Copilot/data/items.csv
+--WebAppBoundary--
 
 
 ### Correct question

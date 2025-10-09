@@ -3,6 +3,7 @@ plan.md
 .env.yaml
 .env_local.yaml
 *.duckdb
+*.wal
 .venv
 .idea
 
