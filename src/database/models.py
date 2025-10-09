@@ -116,7 +116,8 @@ class TableFullModel(BaseModel):
     namespace_id: int
     name: str
     file_name: str | None
-    is_loaded: bool | None
+    file_size: int | None
+    is_loaded: bool = False
     created_at: datetime
     updated_at: datetime | None
 
@@ -139,9 +140,10 @@ class Table(DatabaseObject):
                 (
                     id   INTEGER PRIMARY KEY,
                     namespace_id INTEGER NOT NULL,
-                    name VARCHAR(1024),
+                    name VARCHAR(1024) NOT NULL,
                     file_name VARCHAR(1024),
-                    is_loaded BOOLEAN,
+                    file_size INTEGER,
+                    is_loaded BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (namespace_id) 

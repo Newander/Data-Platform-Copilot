@@ -1,10 +1,13 @@
+import io
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field
 from starlette import status
 
 from src.database.base_model import depends_object
+from src.database.db_connector import ConnectionType, opened_connection
 from src.database.models import Table, NamespacePartModel, NamespaceFullModel, TableFullModel, TablePartModel
 from src.route.inspect_schema import Message
 
@@ -58,9 +61,6 @@ def list_tables(
     )
 
 
-class UploadTableSourceModel(TablePartModel):
-    file: UploadFile = Field(..., description="Uploading file")
-
 
 class TableCreateModel(BaseModel):
     name: str
@@ -83,11 +83,26 @@ def create_table(
 
 @table_router.post('/{table_id}/upload')
 def upload_table_file(
-        table: Annotated[Table, Depends(get_table_depends)],
-        new_table: UploadTableSourceModel,
-) -> NamespaceFullModel:
+        namespace: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
+        table: Annotated[TableFullModel, Depends(get_table_depends)],
+        connection: Annotated[ConnectionType, Depends(opened_connection)],
+        file: UploadFile = File(...),
+) -> TableFullModel:
     # todo: realise
-    return new_table
+    byte_data = file.file.read()
+
+    table.file_name = file.filename
+    table.file_size = len(byte_data)
+
+    data_frame = pd.read_csv(io.BytesIO(byte_data))
+    connection.execute(f"""
+        CREATE OR REPLACE TABLE {namespace.name}.{table.name} AS 
+        SELECT * FROM data_frame
+    """)
+    connection.commit()
+
+    table.is_loaded = True
+    return 'OK'
 
 
 @table_router.get('/{table_id}')

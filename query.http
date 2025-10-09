@@ -32,6 +32,15 @@ Content-Type: application/json
 }
 
 ### Create table part 2
+POST http://localhost:8080/namespace/5/table/1/upload
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="customers.csv"
+Content-Type: text/csv
+
+< /home/newander/PycharmProjects/Data-Platform-Copilot/data/customers.csv
+--WebAppBoundary--
 
 
 ### Correct question
