@@ -108,11 +108,13 @@ class Namespace(DatabaseObject):
 
 class TablePartModel(BaseModel):
     name: str
+    namespace_id: int
 
 
-class TableFullModel(TablePartModel):
+class TableFullModel(BaseModel):
     id: int
     namespace_id: int
+    name: str
     file_name: str | None
     is_loaded: bool | None
     created_at: datetime

@@ -26,7 +26,6 @@ async def get_namespace_depends(
     return namespace
 
 
-
 async def get_table_depends(
         table_id: int,
         namespace_id: int,
@@ -63,18 +62,23 @@ class UploadTableSourceModel(TablePartModel):
     file: UploadFile = Field(..., description="Uploading file")
 
 
-
 class TableCreateModel(BaseModel):
     name: str
 
+
 @table_router.post('/')
 def create_table(
+        namespace_id: int,
         table_obj: Annotated[Table, Depends(depends_object(Table))],
         new_table: TableCreateModel,
-) -> NamespaceFullModel:
-    full_new_table = table_obj.insert(new_table)
+) -> TableFullModel:
+    full_new_table = table_obj.insert(
+        TablePartModel.model_validate(
+            {'namespace_id': namespace_id,
+             **new_table.model_dump()}
+        )
+    )
     return full_new_table
-
 
 
 @table_router.post('/{table_id}/upload')

@@ -24,7 +24,7 @@ Content-Type: application/json
 }
 
 ### Create table part 1
-POST http://localhost:8080/namespace/2/table
+POST http://localhost:8080/namespace/5/table
 Content-Type: application/json
 
 {
