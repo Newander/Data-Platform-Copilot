@@ -42,8 +42,18 @@ class DatabaseObject[CreateM: BaseModel, FullM: BaseModel](abc.ABC):
         result = cursor.fetchone()
         return self.create_model_from_tuple(result)
 
-    def get(self, id_: Any) -> FullM | None:
-        raise NotImplementedError
+    def get(self, id_: int) -> FullM | None:
+        sql = f""" 
+            select {','.join(self.fields())} 
+            from {settings.database.default_schema}.namespace 
+            where id = ? 
+        """
+        logging.info(f"SQL: {sql}")
+        executed = self.connection.execute(sql, (id_,))
+        if result := executed.fetchone():
+            return self.create_model_from_tuple(result)
+
+        return None
 
     def update(self, model: FullM) -> FullM:
         raise NotImplementedError

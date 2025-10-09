@@ -64,20 +64,6 @@ class Namespace(DatabaseObject):
             for fields in result_query
         ]
 
-    def get(self, id_: int) -> NamespaceFullModel | None:
-        executed = self.connection.execute(
-            f""" 
-                select {','.join(self.fields())} 
-                from {settings.database.default_schema}.namespace 
-                where id = ? 
-            """,
-            (id_,)
-        )
-        if result := executed.fetchone():
-            return self.create_model_from_tuple(result)
-
-        return None
-
     def update(self, model: NamespaceFullModel) -> NamespaceFullModel:
         executed = self.connection.execute(
             f""" update {settings.database.default_schema}.namespace
@@ -157,25 +143,3 @@ class Table(DatabaseObject):
             self.connection.execute(ddl)
 
         self.connection.commit()
-
-    def get(self, id_: Any) -> TableFullModel | None:
-        executed = self.connection.execute(
-            f""" 
-            select id, namespace_id, name, file_name, is_loaded, created_at, updated_at 
-            from {settings.database.default_schema}.{self.name} 
-            where id = ? """,
-            (id_,)
-        )
-        if result := executed.fetchone():
-            id_, namespace_id, name, file_name, is_loaded, created_at, updated_at = result
-            return TableFullModel(
-                id=id_,
-                namespace_id=namespace_id,
-                name=name,
-                file_name=file_name,
-                is_loaded=is_loaded,
-                created_at=created_at,
-                updated_at=updated_at
-            )
-
-        return None

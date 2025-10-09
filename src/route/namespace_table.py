@@ -8,7 +8,7 @@ from starlette import status
 
 from src.database.base_model import depends_object
 from src.database.db_connector import ConnectionType, opened_connection
-from src.database.models import Table, NamespacePartModel, NamespaceFullModel, TableFullModel, TablePartModel
+from src.database.models import Table, NamespacePartModel, NamespaceFullModel, TableFullModel, TablePartModel, Namespace
 from src.route.inspect_schema import Message
 
 table_router = APIRouter(prefix='/{namespace_id}/table')
@@ -16,14 +16,14 @@ table_router = APIRouter(prefix='/{namespace_id}/table')
 
 async def get_namespace_depends(
         namespace_id: int,
-        namespace_obj: Annotated[Table, Depends(depends_object(Table))]
+        namespace_obj: Annotated[Namespace, Depends(depends_object(Namespace))]
 ) -> NamespaceFullModel:
     """Checks namespace existence and returns it, or raises 404"""
     namespace = namespace_obj.get(namespace_id)
     if not namespace:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Table with ID:{namespace_id} not found"
+            detail=f"Namespace with ID:{namespace_id} not found"
         )
 
     return namespace
@@ -131,6 +131,5 @@ def delete_table(
         table_obj: Annotated[Table, Depends(depends_object(Table))],
         namespace: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
 ) -> Message:
-    # todo: remove also tables
     table_obj.delete(namespace.id)
     return Message(message=f'The namespace:ID:{namespace.id} is removed')

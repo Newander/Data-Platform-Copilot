@@ -2,7 +2,7 @@
 GET http://localhost:8080/namespace
 
 ###
-DELETE http://localhost:8080/namespace/3
+DELETE http://localhost:8080/namespace/5
 
 ###
 GET http://localhost:8080/namespace/1

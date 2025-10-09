@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from src.database.base_model import depends_object
+from src.database.db_connector import ConnectionType, opened_connection
 from src.database.models import Namespace, NamespacePartModel, NamespaceFullModel
 from src.route.inspect_schema import Message
 from src.route.namespace_table import table_router, get_namespace_depends
@@ -34,9 +35,11 @@ def list_namespaces(
 
 @namespace_router.post('/')
 def create_namespace(
+        connection: Annotated[ConnectionType, Depends(opened_connection)],
         namespace_obj: Annotated[Namespace, Depends(depends_object(Namespace))],
         new_namespace: NamespacePartModel,
 ) -> NamespaceFullModel:
+    connection.execute(f" CREATE SCHEMA IF NOT EXISTS {new_namespace.name} ")
     full_new_namespace = namespace_obj.insert(new_namespace)
     return full_new_namespace
 
@@ -64,10 +67,12 @@ def edit_namespace(
 
 @namespace_router.delete('/{namespace_id}')
 def delete_namespace(
+        connection: Annotated[ConnectionType, Depends(opened_connection)],
         namespace_obj: Annotated[Namespace, Depends(depends_object(Namespace))],
         namespace: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
 ) -> Message:
-    namespace_obj.delete(namespace.id)
+    connection.execute(f" DROP SCHEMA IF EXISTS {namespace.name} CASCADE ")
+    namespace_obj.delete(namespace.id, is_cascade=False)
     return Message(message=f'The namespace:ID:{namespace.id} is removed')
 
 

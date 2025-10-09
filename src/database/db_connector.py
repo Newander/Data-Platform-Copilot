@@ -1,10 +1,11 @@
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any, Generator
 
 import duckdb
 import psycopg2
+from duckdb import DuckDBPyConnection
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config import settings
@@ -212,6 +213,6 @@ class ConnectionCM:
             self.db_connection.commit()
 
 
-def opened_connection() -> ConnectionType:
+def opened_connection() -> Generator[DuckDBPyConnection, Any, None]:
     with ConnectionCM() as connection:
-        return connection
+        yield connection
