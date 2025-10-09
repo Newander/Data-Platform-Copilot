@@ -1,5 +1,8 @@
 import re
 
+from typing import Annotated
+from fastapi import UploadFile, File, HTTPException, Depends
+
 
 def normalize_schema_name(name: str) -> str:
     """
@@ -75,3 +78,42 @@ def normalize_schema_name(name: str) -> str:
         normalized = 'schema_default'
 
     return normalized
+
+
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
+async def validate_csv_file(
+        file: UploadFile = File(..., description="CSV file to upload"),
+) -> UploadFile:
+    """Validate CSV file size and format"""
+
+    # Проверяем расширение
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(
+            status_code=400,
+            detail="Only CSV files are allowed"
+        )
+
+    # Проверяем размер
+    contents = await file.read()
+    file_size = len(contents)
+
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large: {file_size / (1024 * 1024):.1f} MB. "
+                   f"Maximum allowed: {MAX_FILE_SIZE / (1024 * 1024):.1f} MB"
+        )
+
+    # Проверяем, что файл не пустой
+    if file_size == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="File is empty"
+        )
+
+    # Возвращаем файл в начальное состояние
+    await file.seek(0)
+
+    return file

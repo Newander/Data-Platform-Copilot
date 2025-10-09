@@ -9,7 +9,6 @@ from src.config import settings
 from src.database.db_connector import ConnectionCM, ConnectionType, opened_connection
 
 
-
 class DatabaseObject[CreateM: BaseModel, FullM: BaseModel](abc.ABC):
     """ Defines interface for required database objects (because SQLAlchemy & alembic support DuckDB badly) """
     default_schema = settings.database.default_schema
@@ -24,7 +23,6 @@ class DatabaseObject[CreateM: BaseModel, FullM: BaseModel](abc.ABC):
 
     def __init__(self, connection: ConnectionType):
         self.connection = connection
-
 
     def insert(self, model: CreateM) -> FullM:
         short_fields = {
@@ -45,7 +43,7 @@ class DatabaseObject[CreateM: BaseModel, FullM: BaseModel](abc.ABC):
     def get(self, id_: int) -> FullM | None:
         sql = f""" 
             select {','.join(self.fields())} 
-            from {settings.database.default_schema}.namespace 
+            from {settings.database.default_schema}.{self.name} 
             where id = ? 
         """
         logging.info(f"SQL: {sql}")
@@ -55,14 +53,40 @@ class DatabaseObject[CreateM: BaseModel, FullM: BaseModel](abc.ABC):
 
         return None
 
-    def update(self, model: FullM) -> FullM:
-        raise NotImplementedError
+    def update[FullM: BaseModel](self, model: FullM) -> FullM:
+        update_fields = {
+            f: getattr(model, f)
+            for f in self.fields()
+            if f not in ("id", "created_at", "updated_at")
+        }
+        executed = self.connection.execute(
+            f""" 
+                update {settings.database.default_schema}.{self.name}
+                set {','.join(f'{f} = ?' for f in update_fields)}, updated_at = CURRENT_TIMESTAMP
+                where id = ?
+                returning {','.join(self.fields())}
+                """,
+            [*list(update_fields.values()), model.id]
+        )
+        result = executed.fetchone()
+        return self.create_model_from_tuple(result)
 
     def delete(self, id_: Any, is_cascade: bool = False) -> None:
         raise NotImplementedError
 
     def all(self) -> list[FullM]:
-        raise NotImplementedError
+        result_query = self.connection.execute(
+            f"""
+                select {','.join(self.fields())}
+                from {settings.database.default_schema}.{self.name}
+                order by id
+            """
+        ).fetchall()
+
+        return [
+            self.create_model_from_tuple(fields)
+            for fields in result_query
+        ]
 
     def drop_ddl(self) -> None:
         raise NotImplementedError
@@ -77,12 +101,12 @@ class DatabaseObject[CreateM: BaseModel, FullM: BaseModel](abc.ABC):
         return tuple(self.model.model_fields.keys())
 
     def create_model_from_tuple(self, row: tuple) -> FullM:
-            return self.model.model_validate(
-                {
-                    field_name: row[i]
-                    for i, field_name in enumerate(self.fields())
-                }
-            )
+        return self.model.model_validate(
+            {
+                field_name: row[i]
+                for i, field_name in enumerate(self.fields())
+            }
+        )
 
 
 def depends_object[T: DatabaseObject](model: type[T]) -> Callable[[ConnectionType], T]:

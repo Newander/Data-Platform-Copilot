@@ -11,9 +11,11 @@ from src.database.base_model import DatabaseObject
 class NamespaceNameModel(BaseModel):
     name: str
 
+
 class NamespaceCreateModel(BaseModel):
     name: str
     schema_name: str
+
 
 class NamespaceFullModel(BaseModel):
     """ Order is important! """
@@ -55,32 +57,6 @@ class Namespace(DatabaseObject):
 
         self.connection.commit()
 
-    def all(self) -> list[NamespaceFullModel]:
-        result_query = self.connection.execute(
-            f"""
-                select {','.join(self.fields())}
-                from {settings.database.default_schema}.namespace
-                order by id
-            """
-        ).fetchall()
-
-        return [
-            self.create_model_from_tuple(fields)
-            for fields in result_query
-        ]
-
-    def update(self, model: NamespaceFullModel) -> NamespaceFullModel:
-        executed = self.connection.execute(
-            f""" update {settings.database.default_schema}.namespace
-                set name = ?, updated_at = CURRENT_TIMESTAMP
-                where id = ?
-                returning id, name
-            """,
-            (model.name, model.id)
-        )
-        result = executed.fetchone()
-        return NamespaceFullModel(id=result[0], name=result[1])
-
     def delete(self, id_: int, is_cascade: bool = False) -> None:
         if is_cascade:
             self.connection.execute(
@@ -100,12 +76,14 @@ class Namespace(DatabaseObject):
 class TablePartModel(BaseModel):
     name: str
     namespace_id: int
+    table_name: str
 
 
 class TableFullModel(BaseModel):
     id: int
     namespace_id: int
     name: str
+    table_name: str
     file_name: str | None
     file_size: int | None
     is_loaded: bool = False
@@ -132,6 +110,7 @@ class Table(DatabaseObject):
                     id   INTEGER PRIMARY KEY,
                     namespace_id INTEGER NOT NULL,
                     name VARCHAR(1024) NOT NULL,
+                    table_name VARCHAR(1024) NOT NULL,
                     file_name VARCHAR(1024),
                     file_size INTEGER,
                     is_loaded BOOLEAN DEFAULT FALSE,

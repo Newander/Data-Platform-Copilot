@@ -10,6 +10,7 @@ from src.database.base_model import depends_object
 from src.database.db_connector import ConnectionType, opened_connection
 from src.database.models import Table, NamespaceNameModel, NamespaceFullModel, TableFullModel, TablePartModel, Namespace
 from src.route.inspect_schema import Message
+from src.utils import normalize_schema_name, validate_csv_file
 
 table_router = APIRouter(prefix='/{namespace_id}/table')
 
@@ -52,14 +53,16 @@ class TableListResponse(BaseModel):
 
 @table_router.get('/')
 def list_tables(
+        namespace: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
         table_obj: Annotated[Table, Depends(depends_object(Table))],
 ) -> TableListResponse:
-    tables = table_obj.all()
+    tables = [
+        table for table in table_obj.all() if table.namespace_id == namespace.id
+    ]
     return TableListResponse(
         message="OK" if tables else "No tables created",
         tables=tables
     )
-
 
 
 class TableCreateModel(BaseModel):
@@ -68,13 +71,14 @@ class TableCreateModel(BaseModel):
 
 @table_router.post('/')
 def create_table(
-        namespace_id: int,
+        namespace: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
         table_obj: Annotated[Table, Depends(depends_object(Table))],
         new_table: TableCreateModel,
 ) -> TableFullModel:
     full_new_table = table_obj.insert(
         TablePartModel.model_validate(
-            {'namespace_id': namespace_id,
+            {'namespace_id': namespace.id,
+             'table_name': normalize_schema_name(new_table.name),
              **new_table.model_dump()}
         )
     )
@@ -82,13 +86,16 @@ def create_table(
 
 
 @table_router.post('/{table_id}/upload')
-def upload_table_file(
+async def upload_table_file(
         namespace: Annotated[NamespaceFullModel, Depends(get_namespace_depends)],
         table: Annotated[TableFullModel, Depends(get_table_depends)],
+        table_obj: Annotated[Table, Depends(depends_object(Table))],
         connection: Annotated[ConnectionType, Depends(opened_connection)],
-        file: UploadFile = File(...),
+        file: Annotated[UploadFile, Depends(validate_csv_file)],
 ) -> TableFullModel:
-    # todo: realise
+    if table.is_loaded:
+        raise HTTPException(status_code=400, detail="Table is already loaded")
+
     byte_data = file.file.read()
 
     table.file_name = file.filename
@@ -96,13 +103,15 @@ def upload_table_file(
 
     data_frame = pd.read_csv(io.BytesIO(byte_data))
     connection.execute(f"""
-        CREATE OR REPLACE TABLE {namespace.name}.{table.name} AS 
+        CREATE OR REPLACE TABLE {namespace.schema_name}.{table.table_name} AS 
         SELECT * FROM data_frame
     """)
     connection.commit()
 
     table.is_loaded = True
-    return 'OK'
+    table_obj.update(table)
+
+    return table
 
 
 @table_router.get('/{table_id}')
