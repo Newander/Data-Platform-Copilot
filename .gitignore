@@ -6,6 +6,7 @@ plan.md
 *.wal
 .venv
 .idea
+demo_data
 
 # Python
 __pycache__/

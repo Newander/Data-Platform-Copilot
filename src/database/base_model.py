@@ -6,7 +6,7 @@ from fastapi import Depends
 from pydantic import BaseModel
 
 from src.config import settings
-from src.database.db_connector import ConnectionCM, ConnectionType, opened_connection
+from src.database.db_connector import ConnectionType, opened_connection
 
 
 class DatabaseObject[CreateM: BaseModel, FullM: BaseModel](abc.ABC):
@@ -88,6 +88,28 @@ class DatabaseObject[CreateM: BaseModel, FullM: BaseModel](abc.ABC):
             for fields in result_query
         ]
 
+    def filter(self, **field_values: Any) -> list[FullM] | None:
+        """ AND - based filter on the assigned model """
+        def field_wrap(value: Any) -> str:
+            if isinstance(value, str):
+                return f"'{value}'"
+            return str(value)
+
+        result_query = self.connection.execute(
+            f"""
+                select {','.join(self.fields())}
+                from {settings.database.default_schema}.{self.name}
+                where {' and '.join(f'{f}={field_wrap(v)}' for f, v in field_values.items())}
+                order by id
+            """
+        ).fetchall()
+
+        return [
+            self.create_model_from_tuple(fields)
+            for fields in result_query
+        ]
+
+    # DDL
     def drop_ddl(self) -> None:
         raise NotImplementedError
 
@@ -97,6 +119,7 @@ class DatabaseObject[CreateM: BaseModel, FullM: BaseModel](abc.ABC):
     def default_data(self) -> str | None:
         ...
 
+    # Model operations
     def fields(self) -> tuple[str, ...]:
         return tuple(self.model.model_fields.keys())
 

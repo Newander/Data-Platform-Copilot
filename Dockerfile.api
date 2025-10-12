@@ -6,7 +6,7 @@ RUN mkdir "$ROOT_DIR"
 
 COPY src $ROOT_DIR
 COPY db /db
-COPY data /data
+COPY demo_data /data
 
 COPY requirements.txt $ROOT_DIR
 COPY entrypoint.sh $ROOT_DIR

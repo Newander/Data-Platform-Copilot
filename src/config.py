@@ -13,6 +13,9 @@ import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import SettingsConfigDict
 
+ProjectRootPath = Path(__file__).parents[1]
+DemoDataPath = ProjectRootPath / "demo_data"
+
 
 class DatabaseConfig(BaseModel):
     """Database-related configuration settings."""

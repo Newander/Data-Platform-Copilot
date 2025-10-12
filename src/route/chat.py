@@ -341,37 +341,6 @@ async def dq_check(inp: DQCheckIn):
     )
 
 
-class DemoSeedIn(BaseModel):
-    rows: int | None = 100_000
-
-
-class DemoSeedOut(BaseModel):
-    table: str
-    rows: int
-    min_ts: str
-    max_ts: str
-    schema_docs_path: str
-
-
-@chat_router.post("/demo/seed/events", response_model=DemoSeedOut)
-async def demo_seed_events(inp: DemoSeedIn):
-    raise NotImplementedError("Waiting for replacement")
-    stats = seed_events(n_rows=inp.rows or 100_000)
-    # обновим schema_docs.md и сбросим кэш промпта
-    path = write_schema_docs()
-    try:
-        load_schema_docs.cache_clear()  # type: ignore[attr-defined]
-    except Exception:
-        pass
-    return DemoSeedOut(
-        table=stats["table"],
-        rows=stats["rows"],
-        min_ts=stats["min_ts"],
-        max_ts=stats["max_ts"],
-        schema_docs_path=path,
-    )
-
-
 class SchemaRefreshOut(BaseModel):
     schema_docs_path: str
     size_bytes: int
